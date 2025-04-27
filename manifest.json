@@ -1,11 +1,10 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "cytoquery",
+	"name": "CytoQuery",
 	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"minAppVersion": "1.8.0",
+	"description": "A query language and graph visualizer, something like that.",
+	"author": "Bjonnh",
+	"authorUrl": "https://bjonnh.net",
 	"isDesktopOnly": false
 }

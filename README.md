@@ -1,16 +1,15 @@
-# Obsidian Sample Plugin
+# Obsidian CytoQuery Plugin
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+This is a graph visualization plugin for Obsidian (https://obsidian.md).
 
 This project uses TypeScript to provide type checking and documentation.
 The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+This plugin provides graph visualization capabilities for your Obsidian vault:
+- 2D graph visualization using Cytoscape.js
+- 3D graph visualization using 3d-force-graph
+- Visualizes connections between your notes
+- Automatically builds the graph from your vault's files and links
 
 ## First time developing plugins?
 
@@ -46,10 +45,33 @@ Quick starting guide for new plugin devs:
 
 ## How to use
 
+### Installation
 - Clone this repo.
 - Make sure your NodeJS is at least v16 (`node --version`).
 - `npm i` or `yarn` to install dependencies.
 - `npm run dev` to start compilation in watch mode.
+
+### Using the plugin
+Once the plugin is installed and enabled, you can use it in your Markdown notes:
+
+#### 2D Graph Visualization
+To create a 2D graph visualization using Cytoscape.js, add a code block with the `cytoquery` language:
+
+```cytoquery
+```
+
+This will display a 2D graph of your vault's files and their connections.
+
+#### 3D Graph Visualization
+To create a 3D graph visualization using 3d-force-graph, add a code block with the `3d-force-graph` language:
+
+```3d-force-graph
+```
+
+This will display an interactive 3D graph of your vault's files and their connections. You can:
+- Rotate the graph by dragging
+- Zoom in/out using the mouse wheel
+- Click on nodes to focus on them
 
 ## Manually installing the plugin
 
