@@ -73,6 +73,51 @@ This will display an interactive 3D graph of your vault's files and their connec
 - Zoom in/out using the mouse wheel
 - Click on nodes to focus on them
 
+#### Query Language
+Both visualization types support a simple query language that allows you to customize the appearance of nodes based on conditions. You can add queries inside the code blocks:
+
+```cytoquery
+link_to("daily") => color(red)
+tag("note") => color(blue)
+```
+
+The query language syntax follows this pattern:
+```
+condition(value) => action(value)
+```
+
+Currently supported conditions:
+- `link_to("text")` - Matches nodes that link to pages containing the specified text
+- `tag("tagname")` - Matches nodes that have the specified tag
+
+Currently supported actions:
+- `color(value)` - Sets the color of matching nodes (use color names like red, blue, green, etc.)
+
+Examples:
+
+```cytoquery
+link_to("project") => color(green)
+tag("important") => color(red)
+```
+
+```3d-force-graph
+link_to("daily") => color(orange)
+tag("todo") => color(purple)
+```
+
+Each line is a separate rule, and multiple rules can be applied to the same visualization.
+
+#### Public Mode
+The plugin includes a "Public Mode" feature that allows you to hide node names in your graph visualizations. This is useful when you want to share screenshots or videos of your graph without revealing the actual names of your notes.
+
+When Public Mode is enabled, node labels are replaced with their internal IDs, preserving the structure of your graph while anonymizing the content.
+
+To enable Public Mode:
+1. Go to Settings > CytoQuery
+2. Toggle on the "Public Mode" option
+
+This setting affects both 2D and 3D graph visualizations. You can toggle it on when sharing your graphs publicly and off when using them for your own reference.
+
 ## Manually installing the plugin
 
 - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
