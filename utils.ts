@@ -4,6 +4,9 @@ export interface Node {
 	id: string;
 	label: string;
 	color?: string; // Optional color property for styling
+	shape?: 'sphere' | 'cube' | 'cylinder' | 'cone' | 'torus' | 'tetrahedron' | 'octahedron' | 'dodecahedron' | 'icosahedron';
+	material?: 'default' | 'glass' | 'metal' | 'plastic';
+	size?: number; // Optional size multiplier (e.g., 0.5 for half size, 2 for double size)
 }
 
 export interface Edge {

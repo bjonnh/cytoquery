@@ -26,15 +26,20 @@ export class QueryParser {
         const lines = queryText.split('\n').filter(line => line.trim() !== '');
 
         for (const line of lines) {
-            // Parse lines like: link_to("daily") => color(red) or color("#FF0000")
-            const match = line.match(/^(\w+)\(["'](.+)["']\)\s*=>\s*(\w+)\(["']?(.+?)["']?\).*$/);
+            // Parse lines like: link_to("daily") => color(red) or default => color("#FF0000")
+            const match = line.match(/^(\w+)(?:\(["'](.+?)["']\))?\s*=>\s*(\w+)\(["']?(.+?)["']?\).*$/);
             if (match) {
                 const [_, conditionType, conditionValue, actionType, actionValue] = match;
 
                 // Create the rule based on condition type
                 let rule: QueryRule | null = null;
 
-                if (conditionType === 'link_to') {
+                if (conditionType === 'default') {
+                    rule = {
+                        condition: () => true, // Always matches
+                        action: (node) => this.applyAction(node, actionType, actionValue)
+                    };
+                } else if (conditionType === 'link_to') {
                     rule = {
                         condition: (node, metadata) => this.link_to(node, conditionValue, metadata),
                         action: (node) => this.applyAction(node, actionType, actionValue)
@@ -64,6 +69,7 @@ export class QueryParser {
     }
 
     applyRules(nodes: Node[]): void {
+        // Apply default rules first
         for (const node of nodes) {
             for (const rule of this.rules) {
                 if (rule.condition(node, this.metadata)) {
@@ -132,11 +138,30 @@ export class QueryParser {
     }
 
     private applyAction(node: Node, actionType: string, actionValue: string): void {
+        // Remove quotes if present
+        const cleanValue = actionValue.replace(/["']/g, '').toLowerCase();
+        
         if (actionType === 'color') {
-            // Remove quotes if present
-            const color = actionValue.replace(/["']/g, '');
-            node.color = color;
+            node.color = actionValue.replace(/["']/g, '');
+        } else if (actionType === 'shape') {
+            // Validate shape values
+            const validShapes = ['sphere', 'cube', 'cylinder', 'cone', 'torus', 'tetrahedron', 'octahedron', 'dodecahedron', 'icosahedron'];
+            if (validShapes.includes(cleanValue)) {
+                node.shape = cleanValue as any;
+            }
+        } else if (actionType === 'material' || actionType === 'texture') {
+            // Validate material values
+            const validMaterials = ['default', 'glass', 'metal', 'plastic'];
+            if (validMaterials.includes(cleanValue)) {
+                node.material = cleanValue as any;
+            }
+        } else if (actionType === 'size') {
+            // Parse size as a number
+            const sizeValue = parseFloat(actionValue.replace(/["']/g, ''));
+            if (!isNaN(sizeValue) && sizeValue > 0) {
+                // Clamp size between 0.1 and 10 for reasonable limits
+                node.size = Math.max(0.1, Math.min(10, sizeValue));
+            }
         }
-        // Add more action types as needed
     }
 }

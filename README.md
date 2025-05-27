@@ -71,7 +71,10 @@ To create a 3D graph visualization using 3d-force-graph, add a code block with t
 This will display an interactive 3D graph of your vault's files and their connections. You can:
 - Rotate the graph by dragging
 - Zoom in/out using the mouse wheel
-- Click on nodes to focus on them
+- Click on nodes to open a popup with options:
+  - Open the note in a new tab (creates new notes for non-existent links)
+  - Restrict the graph to show only the node and its neighbors within a specified depth
+  - Remove all restrictions to show the full graph again
 
 #### Query Language
 Both visualization types support a simple query language that allows you to customize the appearance of nodes based on conditions. You can add queries inside the code blocks:
@@ -87,25 +90,67 @@ condition(value) => action(value)
 ```
 
 Currently supported conditions:
+- `default` - Matches all nodes (use this to set default properties for all nodes)
 - `link_to("text")` - Matches nodes that link to pages containing the specified text
+- `link_from("text")` - Matches nodes that are linked from pages containing the specified text
+- `link("text")` - Matches nodes that either link to or are linked from pages containing the specified text
 - `tag("tagname")` - Matches nodes that have the specified tag
 
 Currently supported actions:
-- `color(value)` - Sets the color of matching nodes (use color names like red, blue, green, etc.)
+- `color(value)` - Sets the color of matching nodes (use color names like red, blue, green, or hex values like #FF0000)
+- `shape(value)` - Sets the shape of matching nodes (3D graph only)
+- `material(value)` or `texture(value)` - Sets the material/texture of matching nodes (3D graph only)
+- `size(value)` - Sets the size multiplier for matching nodes (3D graph only, e.g., 0.5 for half size, 2 for double size)
+
+Available shapes (3D graph only):
+- `sphere` (default)
+- `cube`
+- `cylinder`
+- `cone`
+- `torus`
+- `tetrahedron`
+- `octahedron`
+- `dodecahedron`
+- `icosahedron`
+
+Available materials/textures (3D graph only):
+- `default` - Basic Lambert material
+- `glass` - Transparent with refraction
+- `metal` - Metallic with reflections
+- `plastic` - Shiny plastic appearance
 
 Examples:
 
 ```cytoquery
 link_to("project") => color(green)
 tag("important") => color(red)
+link_from("index") => color("#FF00FF")
 ```
 
 ```3d-force-graph
+default => shape(sphere)
+default => material(plastic)
+default => color("#4a4a4a")
+default => size(1)
 link_to("daily") => color(orange)
 tag("todo") => color(purple)
+tag("important") => shape(cube)
+tag("important") => material(metal)
+tag("important") => size(2)
+link_to("index") => shape(dodecahedron)
+link_to("index") => texture(glass)
+link_to("index") => size(1.5)
+tag("archived") => shape(cone)
+tag("archived") => material(glass)
+tag("archived") => color("#808080")
+tag("archived") => size(0.5)
+link("daily") => shape(cylinder)
+link("daily") => material(plastic)
+tag("personal") => size(0.7)
+tag("core") => size(3)
 ```
 
-Each line is a separate rule, and multiple rules can be applied to the same visualization.
+Each line is a separate rule, and multiple rules can be applied to the same visualization. For nodes that match multiple rules, all matching actions will be applied. The `default` condition is useful for setting baseline properties for all nodes, which can then be overridden by more specific conditions.
 
 #### Public Mode
 The plugin includes a "Public Mode" feature that allows you to hide node names in your graph visualizations. This is useful when you want to share screenshots or videos of your graph without revealing the actual names of your notes.
