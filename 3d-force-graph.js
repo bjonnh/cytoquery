@@ -243,7 +243,12 @@ var _3dForceGraph = Kapsule({
     },
     pauseAnimation: function pauseAnimation(state) {
       if (state.animationFrameRequestId !== null) {
-        cancelAnimationFrame(state.animationFrameRequestId);
+        // Cancel either setTimeout or requestAnimationFrame
+        if (state._idleState && state._idleState.isIdle) {
+          clearTimeout(state.animationFrameRequestId);
+        } else {
+          cancelAnimationFrame(state.animationFrameRequestId);
+        }
         state.animationFrameRequestId = null;
       }
       return this;
@@ -269,72 +274,81 @@ var _3dForceGraph = Kapsule({
           consecutiveIdleFrames: 0,
           userInteracting: false,
           targetFPS: 60,
-          idleFPS: 5
+          idleFPS: 1,
+          useTimer: false
         };
       }
 
       const now = performance.now();
       const idleState = state._idleState;
       
-      // Calculate time since last render
-      const timeSinceLastRender = now - idleState.lastRenderTime;
+      // Check if simulation is still active by comparing node positions
+      let nodesMoving = false;
+      const nodes = state.forceGraph.graphData().nodes;
       
-      // Determine target frame interval based on idle state
-      const targetInterval = 1000 / (idleState.isIdle && !idleState.userInteracting ? idleState.idleFPS : idleState.targetFPS);
-      
-      // Only render if enough time has passed
-      if (timeSinceLastRender >= targetInterval) {
-        // Check if simulation is still active by comparing node positions
-        let nodesMoving = false;
-        const nodes = state.forceGraph.graphData().nodes;
-        
-        if (nodes && nodes.length > 0) {
-          for (let i = 0; i < Math.min(10, nodes.length); i++) {
-            const node = nodes[i];
-            if (node.__threeObj) {
-              const prevPos = idleState.lastNodePositions.get(node.id);
-              const currPos = {
-                x: node.__threeObj.position.x,
-                y: node.__threeObj.position.y,
-                z: node.__threeObj.position.z
-              };
+      if (nodes && nodes.length > 0) {
+        for (let i = 0; i < Math.min(10, nodes.length); i++) {
+          const node = nodes[i];
+          if (node.__threeObj) {
+            const prevPos = idleState.lastNodePositions.get(node.id);
+            const currPos = {
+              x: node.__threeObj.position.x,
+              y: node.__threeObj.position.y,
+              z: node.__threeObj.position.z
+            };
+            
+            if (prevPos) {
+              const movement = Math.sqrt(
+                Math.pow(currPos.x - prevPos.x, 2) +
+                Math.pow(currPos.y - prevPos.y, 2) +
+                Math.pow(currPos.z - prevPos.z, 2)
+              );
               
-              if (prevPos) {
-                const movement = Math.sqrt(
-                  Math.pow(currPos.x - prevPos.x, 2) +
-                  Math.pow(currPos.y - prevPos.y, 2) +
-                  Math.pow(currPos.z - prevPos.z, 2)
-                );
-                
-                if (movement > 0.01) {
-                  nodesMoving = true;
-                }
+              if (movement > 0.01) {
+                nodesMoving = true;
               }
-              
-              idleState.lastNodePositions.set(node.id, currPos);
             }
+            
+            idleState.lastNodePositions.set(node.id, currPos);
           }
         }
-        
-        // Update idle state
-        if (!nodesMoving && !idleState.userInteracting) {
-          idleState.consecutiveIdleFrames++;
-          if (idleState.consecutiveIdleFrames > 300) { // After 5 seconds of no movement
-            idleState.isIdle = true;
-          }
-        } else {
-          idleState.consecutiveIdleFrames = 0;
-          idleState.isIdle = false;
-        }
-        
-        // Frame cycle
-        state.forceGraph.tickFrame();
-        state.renderObjs.tick();
-        
-        idleState.lastRenderTime = now;
       }
-
-      state.animationFrameRequestId = requestAnimationFrame(this._animationCycle);
+      
+      // Update idle state
+      const wasIdle = idleState.isIdle;
+      if (!nodesMoving && !idleState.userInteracting) {
+        idleState.consecutiveIdleFrames++;
+        if (idleState.consecutiveIdleFrames > 60) { // After 1 second of no movement
+          idleState.isIdle = true;
+        }
+      } else {
+        idleState.consecutiveIdleFrames = 0;
+        idleState.isIdle = false;
+      }
+      
+      // Frame cycle
+      state.forceGraph.tickFrame();
+      state.renderObjs.tick();
+      
+      idleState.lastRenderTime = now;
+      
+      // Schedule next frame based on idle state
+      if (idleState.isIdle && !idleState.userInteracting) {
+        // Use setTimeout for idle state (1 FPS)
+        if (!wasIdle) {
+          console.log('Switching to idle mode (1 FPS)');
+        }
+        state.animationFrameRequestId = setTimeout(() => {
+          state.animationFrameRequestId = null;
+          this._animationCycle();
+        }, 1000); // 1 FPS when idle
+      } else {
+        // Use requestAnimationFrame for active state (60 FPS)
+        if (wasIdle) {
+          console.log('Switching to active mode (60 FPS)');
+        }
+        state.animationFrameRequestId = requestAnimationFrame(this._animationCycle);
+      }
     },
     scene: function scene(state) {
       return state.renderObjs.scene();
@@ -405,6 +419,13 @@ var _3dForceGraph = Kapsule({
         if (interacting) {
           state._idleState.isIdle = false;
           state._idleState.consecutiveIdleFrames = 0;
+          // If currently using timer, cancel it and switch to requestAnimationFrame
+          if (state._idleState.isIdle && state.animationFrameRequestId !== null) {
+            clearTimeout(state.animationFrameRequestId);
+            state.animationFrameRequestId = null;
+            // Restart animation cycle with requestAnimationFrame
+            state._animationCycle();
+          }
         }
       }
     };
