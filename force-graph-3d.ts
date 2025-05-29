@@ -186,10 +186,15 @@ export function init3DForceGraph(
     }
 
     // Parse and apply query rules if query text is provided
+    let parseErrors: string[] = [];
     if (queryText.trim()) {
         const queryParser = new QueryParser(metadataMap, edgeSet);
-        queryParser.parseQuery(queryText);
-        queryParser.applyRules(nodeSet.values());
+        parseErrors = queryParser.getParseErrors(queryText);
+        
+        if (parseErrors.length === 0) {
+            queryParser.parseQuery(queryText);
+            queryParser.applyRules(nodeSet.values());
+        }
     }
 
     // Count links in and out for each node
@@ -236,6 +241,60 @@ export function init3DForceGraph(
         nodes: graphNodes,
         links: graphLinks
     };
+
+    // Create error display element if there are parsing errors
+    if (parseErrors.length > 0) {
+        const errorContainer = document.createElement('div');
+        errorContainer.style.cssText = `
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(200, 50, 50, 0.9);
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            border-radius: 8px;
+            padding: 12px 20px;
+            color: white;
+            font-family: sans-serif;
+            font-size: 14px;
+            z-index: 1001;
+            max-width: 80%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        `;
+        
+        const errorTitle = document.createElement('div');
+        errorTitle.textContent = 'Query Parsing Error:';
+        errorTitle.style.cssText = 'font-weight: bold; margin-bottom: 8px;';
+        errorContainer.appendChild(errorTitle);
+        
+        parseErrors.forEach(error => {
+            const errorMsg = document.createElement('div');
+            errorMsg.textContent = error;
+            errorMsg.style.cssText = 'margin-bottom: 4px;';
+            errorContainer.appendChild(errorMsg);
+        });
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '×';
+        closeBtn.style.cssText = `
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            line-height: 1;
+        `;
+        closeBtn.onclick = () => errorContainer.remove();
+        errorContainer.appendChild(closeBtn);
+        
+        container.appendChild(errorContainer);
+    }
 
     // Initialize the 3D force graph
     const Graph = new ForceGraph3D(graphContainer)

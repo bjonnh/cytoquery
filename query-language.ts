@@ -3,22 +3,28 @@ import { CachedMetadata } from 'obsidian';
 import { Node, EdgeSet } from './utils';
 
 // Define tokens
+const NamedParameter = createToken({ name: "NamedParameter", pattern: /:[a-zA-Z_]\w*/ });
 const Identifier = createToken({ name: "Identifier", pattern: /[a-zA-Z_]\w*/ });
 const StringLiteral = createToken({ name: "StringLiteral", pattern: /"[^"]*"|'[^']*'/ });
 const NumberLiteral = createToken({ name: "NumberLiteral", pattern: /\d+(\.\d+)?/ });
 const Arrow = createToken({ name: "Arrow", pattern: /=>/ });
+const Equals = createToken({ name: "Equals", pattern: /=/ });
 const LParen = createToken({ name: "LParen", pattern: /\(/ });
 const RParen = createToken({ name: "RParen", pattern: /\)/ });
+const Comma = createToken({ name: "Comma", pattern: /,/ });
 const WhiteSpace = createToken({ name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED });
 
 // Token array
 const allTokens = [
   WhiteSpace,
   Arrow, // Must come before other patterns that might match '='
+  Equals,
   NumberLiteral,
   LParen,
   RParen,
   StringLiteral,
+  Comma,
+  NamedParameter, // Must come before Identifier to properly match :name patterns
   Identifier
 ];
 
@@ -28,9 +34,24 @@ const queryLexer = new Lexer(allTokens);
 // CST Node interfaces
 interface RuleCstNode {
   children: {
-    condition: ConditionCstNode[];
+    conditionList: ConditionListCstNode[];
     Arrow: IToken[];
-    action: ActionCstNode[];
+    actionList: ActionListCstNode[];
+  };
+}
+
+interface NamedParamDefinitionCstNode {
+  children: {
+    NamedParameter: IToken[];
+    Equals: IToken[];
+    actionList: ActionListCstNode[];
+  };
+}
+
+interface ConditionListCstNode {
+  children: {
+    condition: ConditionCstNode[];
+    Comma?: IToken[];
   };
 }
 
@@ -40,6 +61,14 @@ interface ConditionCstNode {
     LParen?: IToken[];
     StringLiteral?: IToken[];
     RParen?: IToken[];
+  };
+}
+
+interface ActionListCstNode {
+  children: {
+    action: ActionCstNode[];
+    namedParam?: NamedParamRefCstNode[];
+    Comma?: IToken[];
   };
 }
 
@@ -53,9 +82,16 @@ interface ActionCstNode {
   };
 }
 
+interface NamedParamRefCstNode {
+  children: {
+    NamedParameter: IToken[];
+  };
+}
+
 interface QueryCstNode {
   children: {
-    rule: RuleCstNode[];
+    rule?: RuleCstNode[];
+    namedParamDefinition?: NamedParamDefinitionCstNode[];
   };
 }
 
@@ -68,14 +104,31 @@ class QueryGrammar extends CstParser {
 
   public query = this.RULE("query", () => {
     this.MANY(() => {
-      this.SUBRULE(this.rule);
+      this.OR([
+        { ALT: () => this.SUBRULE(this.rule) },
+        { ALT: () => this.SUBRULE(this.namedParamDefinition) }
+      ]);
     });
   });
 
   private rule = this.RULE("rule", () => {
-    this.SUBRULE(this.condition, { LABEL: "condition" });
+    this.SUBRULE(this.conditionList, { LABEL: "conditionList" });
     this.CONSUME(Arrow);
-    this.SUBRULE(this.action, { LABEL: "action" });
+    this.SUBRULE(this.actionList, { LABEL: "actionList" });
+  });
+
+  private namedParamDefinition = this.RULE("namedParamDefinition", () => {
+    this.CONSUME(NamedParameter);
+    this.CONSUME(Equals);
+    this.SUBRULE(this.actionList, { LABEL: "actionList" });
+  });
+
+  private conditionList = this.RULE("conditionList", () => {
+    this.SUBRULE(this.condition, { LABEL: "condition" });
+    this.MANY(() => {
+      this.CONSUME(Comma);
+      this.SUBRULE2(this.condition, { LABEL: "condition" });
+    });
   });
 
   private condition = this.RULE("condition", () => {
@@ -87,6 +140,19 @@ class QueryGrammar extends CstParser {
     });
   });
 
+  private actionList = this.RULE("actionList", () => {
+    this.OR([
+      { ALT: () => {
+        this.SUBRULE(this.action, { LABEL: "action" });
+        this.MANY(() => {
+          this.CONSUME(Comma);
+          this.SUBRULE2(this.action, { LABEL: "action" });
+        });
+      }},
+      { ALT: () => this.SUBRULE(this.namedParamRef, { LABEL: "namedParam" }) }
+    ]);
+  });
+
   private action = this.RULE("action", () => {
     this.CONSUME(Identifier);
     this.CONSUME(LParen);
@@ -95,6 +161,10 @@ class QueryGrammar extends CstParser {
       { ALT: () => this.CONSUME(NumberLiteral) }
     ]);
     this.CONSUME(RParen);
+  });
+
+  private namedParamRef = this.RULE("namedParamRef", () => {
+    this.CONSUME(NamedParameter);
   });
 }
 
@@ -110,6 +180,7 @@ export interface QueryRule {
 // Enhanced Query Parser using Chevrotain
 export class QueryParser {
   private rules: QueryRule[] = [];
+  private namedParameters: Map<string, { type: string; value: string }[]> = new Map();
   private metadata: Map<string, CachedMetadata>;
   private edges: EdgeSet;
 
@@ -119,8 +190,9 @@ export class QueryParser {
   }
 
   parseQuery(queryText: string): void {
-    // Clear existing rules
+    // Clear existing rules and named parameters
     this.rules = [];
+    this.namedParameters.clear();
 
     // Tokenize
     const lexResult = queryLexer.tokenize(queryText);
@@ -139,56 +211,113 @@ export class QueryParser {
       return;
     }
 
-    // Transform CST to rules
+    // Transform CST to named parameters and rules
+    // First process named parameter definitions
+    if (cst.children.namedParamDefinition) {
+      for (const namedParamCst of cst.children.namedParamDefinition) {
+        this.transformNamedParamDefinition(namedParamCst);
+      }
+    }
+
+    // Then process rules
     if (cst.children.rule) {
       for (const ruleCst of cst.children.rule) {
-        const rule = this.transformRule(ruleCst);
-        if (rule) {
-          this.rules.push(rule);
-        }
+        const rules = this.transformRule(ruleCst);
+        this.rules.push(...rules);
       }
     }
   }
 
-  private transformRule(ruleCst: RuleCstNode): QueryRule | null {
-    const conditionCst = ruleCst.children.condition[0];
-    const actionCst = ruleCst.children.action[0];
+  private transformNamedParamDefinition(namedParamCst: NamedParamDefinitionCstNode): void {
+    const paramName = namedParamCst.children.NamedParameter[0].image;
+    const actions = this.extractActions(namedParamCst.children.actionList[0]);
+    this.namedParameters.set(paramName, actions);
+  }
 
-    const conditionType = conditionCst.children.Identifier[0].image;
-    const conditionValue = conditionCst.children.StringLiteral?.[0]?.image.slice(1, -1); // Remove quotes
-    
-    const actionType = actionCst.children.Identifier[0].image;
-    const actionValue = actionCst.children.StringLiteral?.[0]?.image.slice(1, -1) || // Remove quotes from string
-                       actionCst.children.NumberLiteral?.[0]?.image || ''; // Use number as-is
+  private extractActions(actionListCst: ActionListCstNode): { type: string; value: string }[] {
+    const actions: { type: string; value: string }[] = [];
 
-    // Create the rule based on condition type
-    let condition: (node: Node, metadata: Map<string, CachedMetadata>) => boolean;
-
-    switch (conditionType) {
-      case 'default':
-        condition = () => true;
-        break;
-      case 'link_to':
-        condition = (node, metadata) => this.link_to(node, conditionValue!, metadata);
-        break;
-      case 'link_from':
-        condition = (node, metadata) => this.link_from(node, conditionValue!, metadata);
-        break;
-      case 'link':
-        condition = (node, metadata) => this.link(node, conditionValue!, metadata);
-        break;
-      case 'tag':
-        condition = (node, metadata) => this.hasTag(node, conditionValue!, metadata);
-        break;
-      default:
-        console.warn(`Unknown condition type: ${conditionType}`);
-        return null;
+    if (actionListCst.children.action) {
+      for (const actionCst of actionListCst.children.action) {
+        const actionType = actionCst.children.Identifier[0].image;
+        const actionValue = actionCst.children.StringLiteral?.[0]?.image.slice(1, -1) || // Remove quotes from string
+                           actionCst.children.NumberLiteral?.[0]?.image || ''; // Use number as-is
+        actions.push({ type: actionType, value: actionValue });
+      }
     }
 
-    return {
-      condition,
-      action: (node) => this.applyAction(node, actionType, actionValue)
-    };
+    return actions;
+  }
+
+  private transformRule(ruleCst: RuleCstNode): QueryRule[] {
+    const conditionListCst = ruleCst.children.conditionList[0];
+    const actionListCst = ruleCst.children.actionList[0];
+
+    // Extract all conditions
+    const conditions: Array<{ type: string; value?: string }> = [];
+    if (conditionListCst.children.condition) {
+      for (const conditionCst of conditionListCst.children.condition) {
+        const conditionType = conditionCst.children.Identifier[0].image;
+        const conditionValue = conditionCst.children.StringLiteral?.[0]?.image.slice(1, -1); // Remove quotes
+        conditions.push({ type: conditionType, value: conditionValue });
+      }
+    }
+
+    // Extract all actions (including named parameters)
+    const actions: { type: string; value: string }[] = [];
+    
+    // Check for named parameter reference
+    if (actionListCst.children.namedParam && actionListCst.children.namedParam.length > 0) {
+      const namedParamRef = actionListCst.children.namedParam[0].children.NamedParameter[0].image;
+      const namedActions = this.namedParameters.get(namedParamRef);
+      if (namedActions) {
+        actions.push(...namedActions);
+      } else {
+        console.warn(`Unknown named parameter: ${namedParamRef}`);
+      }
+    } else {
+      // Regular actions
+      actions.push(...this.extractActions(actionListCst));
+    }
+
+    // Create rules for each condition
+    const rules: QueryRule[] = [];
+    for (const conditionDef of conditions) {
+      // Create condition function
+      let condition: (node: Node, metadata: Map<string, CachedMetadata>) => boolean;
+
+      switch (conditionDef.type) {
+        case 'default':
+          condition = () => true;
+          break;
+        case 'link_to':
+          condition = (node, metadata) => this.link_to(node, conditionDef.value!, metadata);
+          break;
+        case 'link_from':
+          condition = (node, metadata) => this.link_from(node, conditionDef.value!, metadata);
+          break;
+        case 'link':
+          condition = (node, metadata) => this.link(node, conditionDef.value!, metadata);
+          break;
+        case 'tag':
+          condition = (node, metadata) => this.hasTag(node, conditionDef.value!, metadata);
+          break;
+        default:
+          console.warn(`Unknown condition type: ${conditionDef.type}`);
+          continue;
+      }
+
+      // Create action function that applies all actions
+      const action = (node: Node) => {
+        for (const actionDef of actions) {
+          this.applyAction(node, actionDef.type, actionDef.value);
+        }
+      };
+
+      rules.push({ condition, action });
+    }
+
+    return rules;
   }
 
   applyRules(nodes: Node[]): void {

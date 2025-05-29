@@ -19,6 +19,9 @@ export function initCytoscape(
     generateRandomStringFromSeed: (input: string) => string,
     publicMode: boolean
 ): void {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
     // Check if there's an existing graph for this container and dispose of it
     if (graphInstances.has(containerId)) {
         const existingGraph = graphInstances.get(containerId);
@@ -26,8 +29,19 @@ export function initCytoscape(
         graphInstances.delete(containerId);
     }
 
+    // Clear any existing content (like error messages)
+    container.innerHTML = '';
+    
+    // Ensure container has relative positioning for absolute children
+    container.style.position = 'relative';
+
+    // Create a wrapper div for the graph itself
+    const graphContainer = document.createElement('div');
+    graphContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;';
+    container.appendChild(graphContainer);
+
     var cy = cytoscape({
-        container: document.getElementById(containerId),
+        container: graphContainer,
         style: [ // the stylesheet for the graph
             {
                 selector: 'node',
@@ -113,10 +127,15 @@ export function initCytoscape(
     }
 
     // Parse and apply query rules if query text is provided
+    let parseErrors: string[] = [];
     if (queryText.trim()) {
         const queryParser = new QueryParser(metadataMap, edgeSet);
-        queryParser.parseQuery(queryText);
-        queryParser.applyRules(nodeSet.values());
+        parseErrors = queryParser.getParseErrors(queryText);
+        
+        if (parseErrors.length === 0) {
+            queryParser.parseQuery(queryText);
+            queryParser.applyRules(nodeSet.values());
+        }
     }
 
     // Transform nodes and edges into cytoscape.js objects
@@ -141,6 +160,60 @@ export function initCytoscape(
     cy.add([...cyNodes, ...cyEdges]);
     // @ts-ignore
     cy.layout({ name: "fcose" }).run();
+
+    // Create error display element if there are parsing errors
+    if (parseErrors.length > 0) {
+        const errorContainer = document.createElement('div');
+        errorContainer.style.cssText = `
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(200, 50, 50, 0.9);
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            border-radius: 8px;
+            padding: 12px 20px;
+            color: white;
+            font-family: sans-serif;
+            font-size: 14px;
+            z-index: 1001;
+            max-width: 80%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        `;
+        
+        const errorTitle = document.createElement('div');
+        errorTitle.textContent = 'Query Parsing Error:';
+        errorTitle.style.cssText = 'font-weight: bold; margin-bottom: 8px;';
+        errorContainer.appendChild(errorTitle);
+        
+        parseErrors.forEach(error => {
+            const errorMsg = document.createElement('div');
+            errorMsg.textContent = error;
+            errorMsg.style.cssText = 'margin-bottom: 4px;';
+            errorContainer.appendChild(errorMsg);
+        });
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '×';
+        closeBtn.style.cssText = `
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            line-height: 1;
+        `;
+        closeBtn.onclick = () => errorContainer.remove();
+        errorContainer.appendChild(closeBtn);
+        
+        container.appendChild(errorContainer);
+    }
 
     // Store the graph instance for later cleanup
     graphInstances.set(containerId, cy);
