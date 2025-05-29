@@ -20,19 +20,58 @@ export function init3DForceGraph(
     if (graphInstances.has(containerId)) {
         const existingGraph = graphInstances.get(containerId);
         // For 3D-force-graph, we need to dispose of the THREE.js resources
-        if (existingGraph._destructor) {
+        if (existingGraph._cleanup) {
+            existingGraph._cleanup();
+        } else if (existingGraph._destructor) {
             existingGraph._destructor();
         }
         graphInstances.delete(containerId);
     }
 
+    // Clear container first
+    container.innerHTML = '';
+    
     // Ensure container has relative positioning for absolute children
     container.style.position = 'relative';
 
     // Create a wrapper div for the graph itself
     const graphContainer = document.createElement('div');
-    graphContainer.style.cssText = 'width: 100%; height: 100%;';
+    graphContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;';
     container.appendChild(graphContainer);
+
+    // Create reset view button (top left)
+    const resetViewButton = document.createElement('button');
+    resetViewButton.innerHTML = '⟲';
+    resetViewButton.title = 'Reset View to Center';
+    resetViewButton.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        width: 40px;
+        height: 40px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    resetViewButton.onmouseover = () => resetViewButton.style.background = 'rgba(0, 0, 0, 0.8)';
+    resetViewButton.onmouseout = () => resetViewButton.style.background = 'rgba(0, 0, 0, 0.7)';
+    resetViewButton.onclick = () => {
+        // Reset camera to look at center of graph with padding
+        Graph.zoomToFit(400, 50);
+        // Re-enable controls after camera movement
+        setTimeout(() => {
+            Graph.enableNavigationControls();
+        }, 500);
+    };
+    container.appendChild(resetViewButton);
 
     // Create hamburger menu button
     const menuButton = document.createElement('button');
@@ -210,6 +249,8 @@ export function init3DForceGraph(
         .linkWidth(1)
         .linkDirectionalArrowLength(3.5)
         .linkDirectionalArrowRelPos(1)
+        .width(graphContainer.clientWidth)
+        .height(graphContainer.clientHeight)
         .graphData(graphData)
         .nodeThreeObject((node: any) => {
             // Create geometry based on shape
@@ -310,11 +351,48 @@ export function init3DForceGraph(
         });
 
     Graph.enableNavigationControls();
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(container.innerWidth, container.innerHeight), 1.5, 0.4, 0.85);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(graphContainer.clientWidth, graphContainer.clientHeight), 1.5, 0.4, 0.85);
     bloomPass.strength = 4.5;
     bloomPass.radius = 1;
     bloomPass.threshold = 0.0;
     Graph.postProcessingComposer().addPass(bloomPass);
+    
+    // Access the renderer and set its size properly
+    setTimeout(() => {
+        const renderer = Graph.renderer();
+        if (renderer) {
+            renderer.setSize(graphContainer.clientWidth, graphContainer.clientHeight);
+            
+            // Update camera aspect ratio
+            const camera = Graph.camera() as THREE.PerspectiveCamera;
+            if (camera && camera.isPerspectiveCamera) {
+                camera.aspect = graphContainer.clientWidth / graphContainer.clientHeight;
+                camera.updateProjectionMatrix();
+            }
+        }
+        
+        // Center on graph after size adjustment
+        Graph.zoomToFit(400, 50);
+    }, 100);
+    
+    // Handle container resize
+    const resizeObserver = new ResizeObserver(() => {
+        const renderer = Graph.renderer();
+        const camera = Graph.camera() as THREE.PerspectiveCamera;
+        
+        if (renderer && graphContainer.clientWidth > 0 && graphContainer.clientHeight > 0) {
+            renderer.setSize(graphContainer.clientWidth, graphContainer.clientHeight);
+            
+            if (camera && camera.isPerspectiveCamera) {
+                camera.aspect = graphContainer.clientWidth / graphContainer.clientHeight;
+                camera.updateProjectionMatrix();
+            }
+            
+            // Update graph dimensions
+            Graph.width(graphContainer.clientWidth).height(graphContainer.clientHeight);
+        }
+    });
+    resizeObserver.observe(graphContainer);
 
     // Create settings controls
     const createSettingsControls = () => {
@@ -455,6 +533,7 @@ export function init3DForceGraph(
         perfSection.appendChild(createSlider('Cooldown Time (ms)', 0, 30000, 1000, 10000, (val) => Graph.cooldownTime(val)));
         settingsPanel.appendChild(perfSection);
 
+
         // Add reset button
         const resetSection = document.createElement('div');
         resetSection.style.cssText = 'margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.2);';
@@ -590,10 +669,16 @@ export function init3DForceGraph(
         // Create popup container
         popup = document.createElement('div');
         popup.className = 'graph-node-popup';
+        
+        // Get container bounds to properly position the popup
+        const containerRect = container.getBoundingClientRect();
+        const popupX = event.clientX - containerRect.left + 10;
+        const popupY = event.clientY - containerRect.top + 10;
+        
         popup.style.cssText = `
             position: absolute;
-            left: ${event.pageX + 10}px;
-            top: ${event.pageY + 10}px;
+            left: ${popupX}px;
+            top: ${popupY}px;
             background: rgba(0, 0, 0, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
@@ -722,6 +807,7 @@ export function init3DForceGraph(
                 display: block;
                 width: 100%;
                 padding: 8px 16px;
+                margin-bottom: 12px;
                 background: rgba(200, 100, 100, 0.2);
                 border: 1px solid rgba(200, 100, 100, 0.5);
                 border-radius: 4px;
@@ -738,6 +824,114 @@ export function init3DForceGraph(
             };
             popup.appendChild(unrestrictBtn);
         }
+
+        // Add center on node controls
+        const centerDiv = document.createElement('div');
+        centerDiv.style.cssText = 'margin-bottom: 12px; padding: 12px; background: rgba(100, 100, 200, 0.1); border-radius: 4px;';
+        
+        const centerLabel = document.createElement('label');
+        centerLabel.textContent = 'Center View on Node:';
+        centerLabel.style.cssText = 'display: block; margin-bottom: 8px; font-size: 13px;';
+        centerDiv.appendChild(centerLabel);
+        
+        const distanceLabel = document.createElement('label');
+        distanceLabel.textContent = 'Camera Distance:';
+        distanceLabel.style.cssText = 'display: block; margin-bottom: 4px; font-size: 12px; color: #ccc;';
+        centerDiv.appendChild(distanceLabel);
+        
+        const distanceSlider = document.createElement('input');
+        distanceSlider.type = 'range';
+        distanceSlider.min = '50';
+        distanceSlider.max = '500';
+        distanceSlider.value = '200';
+        distanceSlider.style.cssText = 'width: 100%; margin-bottom: 4px;';
+        
+        const distanceValue = document.createElement('span');
+        distanceValue.textContent = distanceSlider.value;
+        distanceValue.style.cssText = 'display: inline-block; margin-left: 8px; font-size: 12px;';
+        
+        distanceSlider.oninput = () => {
+            distanceValue.textContent = distanceSlider.value;
+        };
+        
+        const distanceSliderContainer = document.createElement('div');
+        distanceSliderContainer.style.cssText = 'display: flex; align-items: center; margin-bottom: 8px;';
+        distanceSliderContainer.appendChild(distanceSlider);
+        distanceSliderContainer.appendChild(distanceValue);
+        centerDiv.appendChild(distanceSliderContainer);
+
+        const centerBtn = document.createElement('button');
+        centerBtn.textContent = 'Center on This Node';
+        centerBtn.style.cssText = `
+            display: block;
+            width: 100%;
+            padding: 8px 16px;
+            background: rgba(100, 100, 200, 0.3);
+            border: 1px solid rgba(100, 100, 200, 0.5);
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        `;
+        centerBtn.onmouseover = () => centerBtn.style.background = 'rgba(100, 100, 200, 0.4)';
+        centerBtn.onmouseout = () => centerBtn.style.background = 'rgba(100, 100, 200, 0.3)';
+        centerBtn.onclick = () => {
+            // First, ensure we have the current node position
+            const currentNode = Graph.graphData().nodes.find((n: any) => n.id === node.id);
+            if (!currentNode) {
+                console.error('Node not found in graph data');
+                return;
+            }
+            
+            // Get current camera position to maintain similar viewing angle
+            const currentCameraPos = Graph.cameraPosition();
+            const nodePos = { x: currentNode.x || 0, y: currentNode.y || 0, z: currentNode.z || 0 };
+            
+            // Calculate direction from node to current camera
+            const dx = currentCameraPos.x - nodePos.x;
+            const dy = currentCameraPos.y - nodePos.y;
+            const dz = currentCameraPos.z - nodePos.z;
+            const currentDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            
+            // Normalize direction and apply new distance
+            const distance = parseFloat(distanceSlider.value);
+            const scale = currentDistance > 0 ? distance / currentDistance : 1;
+            
+            // If camera is too close to node (or at node), use default angle
+            let newCameraPos;
+            if (currentDistance < 10) {
+                // Default viewing angle: diagonally above
+                const angle = Math.PI / 4; // 45 degrees
+                const elevation = Math.PI / 6; // 30 degrees above horizontal
+                
+                newCameraPos = {
+                    x: nodePos.x + distance * Math.cos(angle) * Math.cos(elevation),
+                    y: nodePos.y + distance * Math.sin(elevation),
+                    z: nodePos.z + distance * Math.sin(angle) * Math.cos(elevation)
+                };
+            } else {
+                // Maintain current viewing angle, just adjust distance
+                newCameraPos = {
+                    x: nodePos.x + dx * scale,
+                    y: nodePos.y + dy * scale,
+                    z: nodePos.z + dz * scale
+                };
+            }
+            
+            Graph.cameraPosition(
+                newCameraPos, // new camera position
+                nodePos, // lookAt the node position
+                1000 // duration in ms
+            );
+            // Re-enable controls after camera movement
+            setTimeout(() => {
+                Graph.enableNavigationControls();
+            }, 1100);
+            closePopup();
+        };
+        centerDiv.appendChild(centerBtn);
+        popup.appendChild(centerDiv);
 
         // Add close button
         const closeBtn = document.createElement('button');
@@ -759,8 +953,8 @@ export function init3DForceGraph(
         closeBtn.onclick = closePopup;
         popup.appendChild(closeBtn);
 
-        // Add popup to document
-        document.body.appendChild(popup);
+        // Add popup to container (not document body)
+        container.appendChild(popup);
 
         // Make popup draggable
         let isDragging = false;
@@ -822,5 +1016,15 @@ export function init3DForceGraph(
         }, 100);
     });
 
-    graphInstances.set(containerId, Graph);
+    // Store graph instance with cleanup function
+    const graphInstance = Object.assign(Graph, {
+        _cleanup: () => {
+            resizeObserver.disconnect();
+            if (Graph._destructor) {
+                Graph._destructor();
+            }
+        }
+    });
+    
+    graphInstances.set(containerId, graphInstance);
 }
