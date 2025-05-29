@@ -47,13 +47,13 @@ export function init3DForceGraph(
         position: absolute;
         top: 16px;
         left: 16px;
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         background: rgba(0, 0, 0, 0.7);
         border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 8px;
         color: white;
-        font-size: 24px;
+        font-size: 20px;
         cursor: pointer;
         z-index: 1000;
         display: flex;
@@ -73,6 +73,49 @@ export function init3DForceGraph(
     };
     container.appendChild(resetViewButton);
 
+    // Create unlock all button (next to reset view)
+    const unlockAllButton = document.createElement('button');
+    unlockAllButton.innerHTML = '🔓';
+    unlockAllButton.title = 'Unlock All Nodes';
+    unlockAllButton.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 58px;
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    unlockAllButton.onmouseover = () => unlockAllButton.style.background = 'rgba(0, 0, 0, 0.8)';
+    unlockAllButton.onmouseout = () => unlockAllButton.style.background = 'rgba(0, 0, 0, 0.7)';
+    unlockAllButton.onclick = () => {
+        // Unlock all nodes
+        const graphData = Graph.graphData();
+        graphData.nodes.forEach((node: any) => {
+            if (lockedNodes.has(node.id)) {
+                lockedNodes.delete(node.id);
+                // Remove fixed position
+                delete node.fx;
+                delete node.fy;
+                delete node.fz;
+            }
+        });
+        // Update button visibility
+        unlockAllButton.style.display = lockedNodes.size > 0 ? 'flex' : 'none';
+    };
+    // Initially hide if no locked nodes
+    unlockAllButton.style.display = 'none';
+    container.appendChild(unlockAllButton);
+
     // Create hamburger menu button
     const menuButton = document.createElement('button');
     menuButton.innerHTML = '☰';
@@ -80,13 +123,13 @@ export function init3DForceGraph(
         position: absolute;
         top: 16px;
         right: 16px;
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         background: rgba(0, 0, 0, 0.7);
         border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 8px;
         color: white;
-        font-size: 24px;
+        font-size: 20px;
         cursor: pointer;
         z-index: 1000;
         display: flex;
@@ -116,7 +159,7 @@ export function init3DForceGraph(
         transition: right 0.3s ease;
         z-index: 999;
         font-family: sans-serif;
-        font-size: 14px;
+        font-size: 12px;
         box-sizing: border-box;
     `;
     container.appendChild(settingsPanel);
@@ -332,6 +375,9 @@ export function init3DForceGraph(
         container.appendChild(errorContainer);
     }
 
+    // Track locked nodes
+    const lockedNodes = new Set<string>();
+
     // Initialize the 3D force graph
     const Graph = new ForceGraph3D(graphContainer)
         .backgroundColor('#000003')
@@ -494,7 +540,7 @@ export function init3DForceGraph(
         // Title
         const title = document.createElement('h2');
         title.textContent = 'Graph Settings';
-        title.style.cssText = 'margin: 0 0 20px 0; font-size: 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 10px;';
+        title.style.cssText = 'margin: 0 0 20px 0; font-size: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 10px;';
         settingsPanel.appendChild(title);
 
         // Helper function to create a section
@@ -503,7 +549,7 @@ export function init3DForceGraph(
             section.style.cssText = 'margin-bottom: 20px;';
             const sectionTitle = document.createElement('h3');
             sectionTitle.textContent = name;
-            sectionTitle.style.cssText = 'margin: 0 0 10px 0; font-size: 16px; color: #aaa;';
+            sectionTitle.style.cssText = 'margin: 0 0 10px 0; font-size: 12px; color: #aaa;';
             section.appendChild(sectionTitle);
             return section;
         };
@@ -514,7 +560,7 @@ export function init3DForceGraph(
             container.style.cssText = 'margin-bottom: 15px;';
             
             const labelEl = document.createElement('label');
-            labelEl.style.cssText = 'display: block; margin-bottom: 5px; font-size: 13px;';
+            labelEl.style.cssText = 'display: block; margin-bottom: 5px; font-size: 11px;';
             const valueSpan = document.createElement('span');
             valueSpan.textContent = value.toString();
             valueSpan.style.cssText = 'float: right; color: #888;';
@@ -547,7 +593,7 @@ export function init3DForceGraph(
             
             const labelEl = document.createElement('label');
             labelEl.textContent = label;
-            labelEl.style.cssText = 'display: block; margin-bottom: 5px; font-size: 13px;';
+            labelEl.style.cssText = 'display: block; margin-bottom: 5px; font-size: 11px;';
             
             const select = document.createElement('select');
             select.style.cssText = 'width: 100%; padding: 5px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: white; border-radius: 4px; cursor: pointer;';
@@ -790,23 +836,26 @@ export function init3DForceGraph(
         // Add title
         const title = document.createElement('h3');
         title.textContent = node.name;
-        title.style.cssText = 'margin: 0 0 12px 0; font-size: 16px; color: #fff;';
+        title.style.cssText = 'margin: 0 0 12px 0; font-size: 14px; color: #fff;';
         popup.appendChild(title);
 
-        // Add "Go to page" button
+        // Create button container for icon buttons
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = 'display: flex; gap: 8px; margin-bottom: 12px;';
+
+        // Add "Go to page" button with icon
         const goToPageBtn = document.createElement('button');
-        goToPageBtn.textContent = 'Go to page in new tab';
+        goToPageBtn.innerHTML = '📄';
+        goToPageBtn.title = 'Go to page in new tab';
         goToPageBtn.style.cssText = `
-            display: block;
-            width: 100%;
-            padding: 8px 16px;
-            margin-bottom: 12px;
+            flex: 1;
+            padding: 8px;
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 4px;
             color: white;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 16px;
             transition: background 0.2s;
         `;
         goToPageBtn.onmouseover = () => goToPageBtn.style.background = 'rgba(255, 255, 255, 0.2)';
@@ -838,7 +887,52 @@ export function init3DForceGraph(
             }
             closePopup();
         };
-        popup.appendChild(goToPageBtn);
+        buttonContainer.appendChild(goToPageBtn);
+
+        // Add lock/unlock button
+        const lockBtn = document.createElement('button');
+        const isLocked = lockedNodes.has(node.id);
+        lockBtn.innerHTML = isLocked ? '🔓' : '🔒';
+        lockBtn.title = isLocked ? 'Unlock node' : 'Lock node in place';
+        lockBtn.style.cssText = `
+            flex: 1;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+        `;
+        lockBtn.onmouseover = () => lockBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        lockBtn.onmouseout = () => lockBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        lockBtn.onclick = () => {
+            const currentNode = Graph.graphData().nodes.find((n: any) => n.id === node.id);
+            if (!currentNode) return;
+            
+            if (isLocked) {
+                // Unlock the node
+                lockedNodes.delete(node.id);
+                delete currentNode.fx;
+                delete currentNode.fy;
+                delete currentNode.fz;
+            } else {
+                // Lock the node at its current position
+                lockedNodes.add(node.id);
+                currentNode.fx = currentNode.x;
+                currentNode.fy = currentNode.y;
+                currentNode.fz = currentNode.z;
+            }
+            
+            // Update unlock all button visibility
+            unlockAllButton.style.display = lockedNodes.size > 0 ? 'flex' : 'none';
+            
+            closePopup();
+        };
+        buttonContainer.appendChild(lockBtn);
+
+        popup.appendChild(buttonContainer);
 
         // Add restriction controls
         const restrictionDiv = document.createElement('div');
