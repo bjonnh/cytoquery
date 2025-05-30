@@ -460,6 +460,83 @@ export function init3DForceGraph(
     
     container.appendChild(saveButton);
 
+    // Create idle rotation button (positioned after save button)
+    const idleRotationButton = document.createElement('button');
+    idleRotationButton.innerHTML = '🔄';
+    idleRotationButton.title = 'Toggle Idle Rotation Mode';
+    idleRotationButton.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 348px;
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    
+    // Add hover effects and click handler for idle rotation button
+    idleRotationButton.onmouseover = () => {
+        idleRotationButton.style.background = isIdleRotationActive ? 'rgba(100, 200, 100, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+    };
+    idleRotationButton.onmouseout = () => {
+        idleRotationButton.style.background = isIdleRotationActive ? 'rgba(100, 200, 100, 0.5)' : 'rgba(0, 0, 0, 0.7)';
+    };
+    idleRotationButton.onclick = () => {
+        isIdleRotationActive = !isIdleRotationActive;
+        if (isIdleRotationActive) {
+            rotationStartTime = Date.now();
+            idleRotationButton.style.background = 'rgba(100, 200, 100, 0.5)';
+            idleRotationButton.title = 'Disable Idle Rotation Mode';
+            
+            // Pause and immediately resume to force requestAnimationFrame mode
+            Graph.pauseAnimation();
+            Graph.resumeAnimation();
+            
+            // Set up an interval to simulate user interaction
+            idlePreventionInterval = window.setInterval(() => {
+                if (isIdleRotationActive) {
+                    // Simulate a mouse move event on the renderer to trigger user interaction
+                    const renderer = Graph.renderer();
+                    if (renderer && renderer.domElement) {
+                        const event = new MouseEvent('mousemove', {
+                            bubbles: true,
+                            cancelable: true,
+                            clientX: window.innerWidth / 2,
+                            clientY: window.innerHeight / 2
+                        });
+                        renderer.domElement.dispatchEvent(event);
+                    }
+                }
+            }, 100); // Trigger every 100ms to maintain interaction status
+            
+        } else {
+            idleRotationButton.style.background = 'rgba(0, 0, 0, 0.7)';
+            idleRotationButton.title = 'Enable Idle Rotation Mode';
+            
+            // Clear the interval
+            if (idlePreventionInterval !== null) {
+                window.clearInterval(idlePreventionInterval);
+                idlePreventionInterval = null;
+            }
+            
+            // Allow the graph to return to normal idle detection
+            if ((Graph as any)._idleState) {
+                (Graph as any)._idleState.userInteracting = false;
+            }
+        }
+    };
+    
+    container.appendChild(idleRotationButton);
+
     // Create hamburger menu button
     const menuButton = document.createElement('button');
     menuButton.innerHTML = '☰';
@@ -737,6 +814,12 @@ export function init3DForceGraph(
     let targetNode: string | null = null;
     let currentPath: string[] = [];
     let selectedNode: string | null = null;
+
+    // Track idle rotation state
+    let isIdleRotationActive = false;
+    let rotationStartTime = 0;
+    let rotationSpeed = 0.3; // degrees per second converted to radians per millisecond
+    let idlePreventionInterval: number | null = null;
 
     // Track current parameter values for dynamic functions
     const currentParams: GraphParameters = {
@@ -1049,6 +1132,62 @@ export function init3DForceGraph(
                 haloMesh2.material.opacity = pulseOpacity;
             }
         });
+        
+        // Handle idle rotation if active
+        if (isIdleRotationActive) {
+            
+            const currentTime = Date.now();
+            const elapsed = currentTime - rotationStartTime;
+            
+            // Calculate rotation angle based on elapsed time (rotationSpeed is in degrees per second)
+            const rotationAngle = (elapsed / 1000) * rotationSpeed * (Math.PI / 180); // Convert to radians
+            
+            // Get current camera position and the graph center
+            const cameraPos = Graph.cameraPosition();
+            
+            // Calculate the center of the graph (average of all node positions)
+            const nodes = Graph.graphData().nodes;
+            let centerX = 0, centerY = 0, centerZ = 0;
+            if (nodes.length > 0) {
+                nodes.forEach((node: any) => {
+                    centerX += node.x || 0;
+                    centerY += node.y || 0;
+                    centerZ += node.z || 0;
+                });
+                centerX /= nodes.length;
+                centerY /= nodes.length;
+                centerZ /= nodes.length;
+            }
+            
+            // Calculate distance from camera to center
+            const dx = cameraPos.x - centerX;
+            const dy = cameraPos.y - centerY;
+            const dz = cameraPos.z - centerZ;
+            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            
+            // Calculate current angle in XZ plane (around Y-axis)
+            const currentAngle = Math.atan2(dz, dx);
+            
+            // Apply rotation to get new angle
+            const newAngle = currentAngle + rotationAngle;
+            
+            // Calculate new camera position maintaining distance and Y position
+            const newCameraPos = {
+                x: centerX + distance * Math.cos(newAngle) * Math.cos(Math.asin(dy / distance)),
+                y: cameraPos.y, // Keep Y position constant for horizontal rotation
+                z: centerZ + distance * Math.sin(newAngle) * Math.cos(Math.asin(dy / distance))
+            };
+            
+            // Update camera position to orbit around center
+            Graph.cameraPosition(
+                newCameraPos,
+                { x: centerX, y: centerY, z: centerZ }, // Look at center
+                0 // No animation duration for smooth continuous rotation
+            );
+            
+            // Reset rotation start time to current time for next frame
+            rotationStartTime = currentTime;
+        }
         
         requestAnimationFrame(animate);
     };
