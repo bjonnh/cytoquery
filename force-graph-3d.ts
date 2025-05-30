@@ -322,7 +322,7 @@ export function init3DForceGraph(
 
     // Create target node selection button
     const targetButton = document.createElement('button');
-    targetButton.innerHTML = '🔴';
+    targetButton.innerHTML = '🟠';
     targetButton.title = 'Select Target Node for Path Finding';
     targetButton.style.cssText = `
         position: absolute;
@@ -343,7 +343,7 @@ export function init3DForceGraph(
         transition: background 0.2s;
     `;
     targetButton.onmouseover = () => targetButton.style.background = 'rgba(0, 0, 0, 0.8)';
-    targetButton.onmouseout = () => targetButton.style.background = isSelectingTarget ? 'rgba(200, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.7)';
+    targetButton.onmouseout = () => targetButton.style.background = isSelectingTarget ? 'rgba(255, 165, 0, 0.5)' : 'rgba(0, 0, 0, 0.7)';
     container.appendChild(targetButton);
 
     // Create find path buttons container
@@ -736,6 +736,7 @@ export function init3DForceGraph(
     let sourceNode: string | null = null;
     let targetNode: string | null = null;
     let currentPath: string[] = [];
+    let selectedNode: string | null = null;
 
     // Track current parameter values for dynamic functions
     const currentParams: GraphParameters = {
@@ -814,24 +815,7 @@ export function init3DForceGraph(
             }
             return currentParams.linkStyle?.width || 1; // Default width
         })
-        .linkOpacity(((link: any) => {
-            // Check if this link is part of the current path
-            if (currentPath.length > 1) {
-                const srcId = typeof link.source === 'string' ? link.source : link.source.id;
-                const tgtId = typeof link.target === 'string' ? link.target : link.target.id;
-                
-                // Find consecutive nodes in path that match this link
-                for (let i = 0; i < currentPath.length - 1; i++) {
-                    if ((currentPath[i] === srcId && currentPath[i + 1] === tgtId) ||
-                        (currentPath[i] === tgtId && currentPath[i + 1] === srcId)) {
-                        return 1.0; // Full opacity for path links (4x from default 0.2)
-                    }
-                }
-                // Very low opacity for non-path links when path is active
-                return 0.01;
-            }
-            return currentParams.linkStyle?.opacity || 0.2; // Default opacity when no path
-        }) as any)
+        .linkOpacity(currentParams.linkStyle?.opacity || 0.2)
         // Apply performance parameters
         .cooldownTime(parameters.performance?.cooldownTime || 10000)
         .warmupTicks(parameters.performance?.warmupTicks || 0)
@@ -954,7 +938,57 @@ export function init3DForceGraph(
                 mesh.add(glowMesh);
             }
             
-            return mesh;
+            // Add halos for special node states
+            const nodeGroup = new THREE.Group();
+            nodeGroup.add(mesh);
+            
+            // Check if this node needs a halo indicator
+            const isSelected = selectedNode === node.id;
+            const isSource = sourceNode === node.id;
+            const isTarget = targetNode === node.id;
+            const isInPath = currentPath.includes(node.id);
+            
+            if (isSelected || isSource || isTarget || isInPath) {
+                // Create halo geometry - a ring around the node
+                const haloGeometry = new THREE.RingGeometry(size * 1.5, size * 1.8, 32);
+                
+                // Determine halo color based on node state (priority order)
+                let haloColor;
+                if (isSelected) {
+                    haloColor = new THREE.Color(0x00ff00); // Green for selected (highest priority)
+                } else if (isSource) {
+                    haloColor = new THREE.Color(0x0066ff); // Blue for source
+                } else if (isTarget) {
+                    haloColor = new THREE.Color(0xffa500); // Orange for target
+                } else if (isInPath) {
+                    haloColor = new THREE.Color(0xff0000); // Red for path nodes
+                }
+                
+                const haloMaterial = new THREE.MeshBasicMaterial({
+                    color: haloColor,
+                    transparent: true,
+                    opacity: 0.6,
+                    side: THREE.DoubleSide
+                });
+                
+                const haloMesh = new THREE.Mesh(haloGeometry, haloMaterial);
+                
+                // Make halo face the camera by rotating it
+                haloMesh.lookAt(new THREE.Vector3(0, 0, 1));
+                
+                nodeGroup.add(haloMesh);
+                
+                // Store reference to halo for potential updates
+                (nodeGroup as any).__haloMesh = haloMesh;
+                
+                // Store nodeGroup for animation updates
+                nodeObjects.set(node.id, nodeGroup);
+            } else {
+                // Remove from animation tracking if no halo
+                nodeObjects.delete(node.id);
+            }
+            
+            return nodeGroup;
         });
 
     Graph.enableNavigationControls();
@@ -963,6 +997,29 @@ export function init3DForceGraph(
     bloomPass.radius = parameters.bloom?.radius || 1;
     bloomPass.threshold = parameters.bloom?.threshold || 0.0;
     Graph.postProcessingComposer().addPass(bloomPass);
+    
+    // Store node object references for animation
+    const nodeObjects = new Map<string, THREE.Group>();
+    
+    // Set up animation loop for pulsing halos
+    const animate = () => {
+        const time = Date.now() * 0.003;
+        
+        // Update halo animations for tracked nodes
+        nodeObjects.forEach((nodeGroup, nodeId) => {
+            const haloMesh = (nodeGroup as any).__haloMesh;
+            if (haloMesh) {
+                const pulseScale = 1.0 + Math.sin(time + nodeId.length) * 0.15;
+                haloMesh.scale.setScalar(pulseScale);
+                
+                // Update halo opacity for breathing effect
+                haloMesh.material.opacity = 0.4 + Math.sin(time * 2 + nodeId.length) * 0.2;
+            }
+        });
+        
+        requestAnimationFrame(animate);
+    };
+    animate();
     
     // Access the renderer and set its size properly
     setTimeout(() => {
@@ -1178,9 +1235,9 @@ export function init3DForceGraph(
         const linkSection = createSection('Link Styling');
         // Note: Link opacity is controlled by path finding function when active
         linkSection.appendChild(createSlider('Link Opacity', 0, 1, 0.05, currentParams.linkStyle!.opacity!, (val) => {
-            // Update parameter and refresh graph to re-evaluate dynamic functions
+            // Update parameter and refresh via updatePathUI to handle path state properly
             currentParams.linkStyle!.opacity = val;
-            Graph.refresh();
+            updatePathUI();
         }, updateSaveButton));
         linkSection.appendChild(createSlider('Link Width', 0, 10, 0.5, currentParams.linkStyle!.width!, (val) => {
             // Update parameter and refresh graph to re-evaluate dynamic functions  
@@ -1492,7 +1549,7 @@ export function init3DForceGraph(
                                       (sourceNode ? 'rgba(0, 200, 0, 0.3)' : 'rgba(0, 0, 0, 0.7)');
         
         // Update target button appearance  
-        targetButton.style.background = isSelectingTarget ? 'rgba(200, 0, 0, 0.5)' : 
+        targetButton.style.background = isSelectingTarget ? 'rgba(255, 165, 0, 0.5)' : 
                                       (targetNode ? 'rgba(0, 200, 0, 0.3)' : 'rgba(0, 0, 0, 0.7)');
         
         // Show/hide path buttons
@@ -1501,7 +1558,9 @@ export function init3DForceGraph(
         // Show/hide clear path button
         clearPathButton.style.display = currentPath.length > 0 ? 'flex' : 'none';
         
-        // Update graph colors
+        // Note: We don't touch linkOpacity at all - let it be controlled by settings only
+        
+        // Update graph colors and node halos
         Graph.refresh();
     };
     
@@ -1540,6 +1599,7 @@ export function init3DForceGraph(
         currentPath = [];
         sourceNode = null;
         targetNode = null;
+        selectedNode = null;
         isSelectingSource = false;
         isSelectingTarget = false;
         updatePathUI();
@@ -1551,6 +1611,10 @@ export function init3DForceGraph(
         if (isSelectingSource) {
             sourceNode = node.id;
             isSelectingSource = false;
+            // Clear selection when node becomes source
+            if (selectedNode === node.id) {
+                selectedNode = null;
+            }
             updatePathUI();
             return;
         }
@@ -1558,9 +1622,23 @@ export function init3DForceGraph(
         if (isSelectingTarget) {
             targetNode = node.id;
             isSelectingTarget = false;
+            // Clear selection when node becomes target
+            if (selectedNode === node.id) {
+                selectedNode = null;
+            }
             updatePathUI();
             return;
         }
+        
+        // Toggle node selection (allow deselection by clicking again)
+        if (selectedNode === node.id) {
+            selectedNode = null; // Deselect if already selected
+        } else {
+            selectedNode = node.id; // Select this node
+        }
+        
+        // Refresh the graph to update halo displays
+        Graph.refresh();
         
         // Close existing popup if any
         closePopup();
