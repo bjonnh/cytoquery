@@ -29,14 +29,7 @@
 		"vitest": "^3.1.4"
 	},
 	"dependencies": {
-		"@types/cytoscape": "^3.21.9",
-		"@types/cytoscape-dagre": "^2.3.3",
-		"@types/cytoscape-fcose": "^2.2.4",
 		"accessor-fn": "^1.5.3",
-		"cytoscape": "^3.31.2",
-		"cytoscape-cise": "^2.0.0",
-		"cytoscape-dagre": "^2.5.0",
-		"cytoscape-fcose": "^2.2.0",
 		"kapsule": "^1.16.3",
 		"three": "^0.174.0",
 		"three-forcegraph": "^1.42.13",

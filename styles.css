@@ -7,13 +7,6 @@ If your plugin does not need CSS, delete this file.
 
 */
 
-.cytoquery {
-	min-height: 500px;
-	width: 100%;
-	border-radius: 4px;
-	margin: 10px 0;
-	background-color: white;
-}
 
 .force-graph-3d {
 	min-height: 500px;

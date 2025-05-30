@@ -294,14 +294,150 @@ export function init3DForceGraph(
     unlockAllButton.style.display = 'none';
     container.appendChild(unlockAllButton);
 
-    // Create save parameters button (next to unlock all)
+    // Create source node selection button
+    const sourceButton = document.createElement('button');
+    sourceButton.innerHTML = '🔵';
+    sourceButton.title = 'Select Source Node for Path Finding';
+    sourceButton.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 100px;
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    sourceButton.onmouseover = () => sourceButton.style.background = 'rgba(0, 0, 0, 0.8)';
+    sourceButton.onmouseout = () => sourceButton.style.background = isSelectingSource ? 'rgba(0, 100, 200, 0.5)' : 'rgba(0, 0, 0, 0.7)';
+    container.appendChild(sourceButton);
+
+    // Create target node selection button
+    const targetButton = document.createElement('button');
+    targetButton.innerHTML = '🔴';
+    targetButton.title = 'Select Target Node for Path Finding';
+    targetButton.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 142px;
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    targetButton.onmouseover = () => targetButton.style.background = 'rgba(0, 0, 0, 0.8)';
+    targetButton.onmouseout = () => targetButton.style.background = isSelectingTarget ? 'rgba(200, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.7)';
+    container.appendChild(targetButton);
+
+    // Create find path buttons container
+    const pathButtonsContainer = document.createElement('div');
+    pathButtonsContainer.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 184px;
+        display: flex;
+        gap: 4px;
+        z-index: 1000;
+    `;
+    pathButtonsContainer.style.display = 'none';
+    
+    // Create directed path button
+    const directedPathButton = document.createElement('button');
+    directedPathButton.innerHTML = '→';
+    directedPathButton.title = 'Find Directed Path';
+    directedPathButton.style.cssText = `
+        width: 36px;
+        height: 36px;
+        background: rgba(100, 200, 100, 0.3);
+        border: 1px solid rgba(100, 200, 100, 0.5);
+        border-radius: 8px;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    directedPathButton.onmouseover = () => directedPathButton.style.background = 'rgba(100, 200, 100, 0.4)';
+    directedPathButton.onmouseout = () => directedPathButton.style.background = 'rgba(100, 200, 100, 0.3)';
+    pathButtonsContainer.appendChild(directedPathButton);
+    
+    // Create undirected path button
+    const undirectedPathButton = document.createElement('button');
+    undirectedPathButton.innerHTML = '↔';
+    undirectedPathButton.title = 'Find Undirected Path';
+    undirectedPathButton.style.cssText = `
+        width: 36px;
+        height: 36px;
+        background: rgba(100, 200, 100, 0.3);
+        border: 1px solid rgba(100, 200, 100, 0.5);
+        border-radius: 8px;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    undirectedPathButton.onmouseover = () => undirectedPathButton.style.background = 'rgba(100, 200, 100, 0.4)';
+    undirectedPathButton.onmouseout = () => undirectedPathButton.style.background = 'rgba(100, 200, 100, 0.3)';
+    pathButtonsContainer.appendChild(undirectedPathButton);
+    
+    container.appendChild(pathButtonsContainer);
+
+    // Create clear path button
+    const clearPathButton = document.createElement('button');
+    clearPathButton.innerHTML = '✕';
+    clearPathButton.title = 'Clear Path';
+    clearPathButton.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 264px;
+        width: 36px;
+        height: 36px;
+        background: rgba(200, 100, 100, 0.3);
+        border: 1px solid rgba(200, 100, 100, 0.5);
+        border-radius: 8px;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 1000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    clearPathButton.onmouseover = () => clearPathButton.style.background = 'rgba(200, 100, 100, 0.4)';
+    clearPathButton.onmouseout = () => clearPathButton.style.background = 'rgba(200, 100, 100, 0.3)';
+    container.appendChild(clearPathButton);
+
+    // Create save parameters button (moved to the right)
     const saveButton = document.createElement('button');
     saveButton.innerHTML = '💾';
     saveButton.title = 'Save Parameters to Code Block';
     saveButton.style.cssText = `
         position: absolute;
         top: 16px;
-        left: 100px;
+        left: 306px;
         width: 36px;
         height: 36px;
         background: rgba(0, 0, 0, 0.7);
@@ -594,6 +730,51 @@ export function init3DForceGraph(
     // Track locked nodes
     const lockedNodes = new Set<string>();
 
+    // Track path finding state
+    let isSelectingSource = false;
+    let isSelectingTarget = false;
+    let sourceNode: string | null = null;
+    let targetNode: string | null = null;
+    let currentPath: string[] = [];
+
+    // Track current parameter values for dynamic functions
+    const currentParams: GraphParameters = {
+        force: {
+            alphaDecay: parameters.force?.alphaDecay || 0.0228,
+            velocityDecay: parameters.force?.velocityDecay || 0.4,
+            alphaMin: parameters.force?.alphaMin || 0
+        },
+        dag: {
+            mode: parameters.dag?.mode || '',
+            levelDistance: parameters.dag?.levelDistance || 50
+        },
+        nodeStyle: {
+            size: parameters.nodeStyle?.size || 4,
+            opacity: parameters.nodeStyle?.opacity || 0.75,
+            resolution: parameters.nodeStyle?.resolution || 8
+        },
+        linkStyle: {
+            opacity: parameters.linkStyle?.opacity || 0.2,
+            width: parameters.linkStyle?.width || 1,
+            curvature: parameters.linkStyle?.curvature || 0,
+            particles: parameters.linkStyle?.particles || 0,
+            particleSpeed: parameters.linkStyle?.particleSpeed || 0.01
+        },
+        bloom: {
+            strength: parameters.bloom?.strength || 4.5,
+            radius: parameters.bloom?.radius || 1,
+            threshold: parameters.bloom?.threshold || 0
+        },
+        interaction: {
+            enableDrag: parameters.interaction?.enableDrag !== false
+        },
+        performance: {
+            warmupTicks: parameters.performance?.warmupTicks || 0,
+            cooldownTicks: parameters.performance?.cooldownTicks || Infinity,
+            cooldownTime: parameters.performance?.cooldownTime || 10000
+        }
+    };
+
     // Initialize the 3D force graph with default or loaded parameters
     const Graph = new ForceGraph3D(graphContainer)
         .backgroundColor('#000003')
@@ -601,7 +782,56 @@ export function init3DForceGraph(
         //.nodeAutoColorBy('group')
         .nodeColor('color')
         .nodeVal('val')
-        .linkColor(() => '#ccc')
+        .linkColor((link: any) => {
+            // Check if this link is part of the current path
+            if (currentPath.length > 1) {
+                const srcId = typeof link.source === 'string' ? link.source : link.source.id;
+                const tgtId = typeof link.target === 'string' ? link.target : link.target.id;
+                
+                // Find consecutive nodes in path that match this link
+                for (let i = 0; i < currentPath.length - 1; i++) {
+                    if ((currentPath[i] === srcId && currentPath[i + 1] === tgtId) ||
+                        (currentPath[i] === tgtId && currentPath[i + 1] === srcId)) {
+                        return '#ff0000'; // Red for path links
+                    }
+                }
+            }
+            return '#ccc'; // Default color
+        })
+        .linkWidth((link: any) => {
+            // Check if this link is part of the current path
+            if (currentPath.length > 1) {
+                const srcId = typeof link.source === 'string' ? link.source : link.source.id;
+                const tgtId = typeof link.target === 'string' ? link.target : link.target.id;
+                
+                // Find consecutive nodes in path that match this link
+                for (let i = 0; i < currentPath.length - 1; i++) {
+                    if ((currentPath[i] === srcId && currentPath[i + 1] === tgtId) ||
+                        (currentPath[i] === tgtId && currentPath[i + 1] === srcId)) {
+                        return 32; // Much thicker for path links (32x wider)
+                    }
+                }
+            }
+            return currentParams.linkStyle?.width || 1; // Default width
+        })
+        .linkOpacity(((link: any) => {
+            // Check if this link is part of the current path
+            if (currentPath.length > 1) {
+                const srcId = typeof link.source === 'string' ? link.source : link.source.id;
+                const tgtId = typeof link.target === 'string' ? link.target : link.target.id;
+                
+                // Find consecutive nodes in path that match this link
+                for (let i = 0; i < currentPath.length - 1; i++) {
+                    if ((currentPath[i] === srcId && currentPath[i + 1] === tgtId) ||
+                        (currentPath[i] === tgtId && currentPath[i + 1] === srcId)) {
+                        return 1.0; // Full opacity for path links (4x from default 0.2)
+                    }
+                }
+                // Very low opacity for non-path links when path is active
+                return 0.01;
+            }
+            return currentParams.linkStyle?.opacity || 0.2; // Default opacity when no path
+        }) as any)
         // Apply performance parameters
         .cooldownTime(parameters.performance?.cooldownTime || 10000)
         .warmupTicks(parameters.performance?.warmupTicks || 0)
@@ -618,8 +848,7 @@ export function init3DForceGraph(
         .nodeOpacity(parameters.nodeStyle?.opacity || 0.75)
         .nodeResolution(parameters.nodeStyle?.resolution || 8)
         // Apply link style parameters
-        .linkWidth(parameters.linkStyle?.width || 1)
-        .linkOpacity(parameters.linkStyle?.opacity || 0.2)
+        // Note: linkWidth and linkOpacity are handled by functions above when path is active
         .linkCurvature(parameters.linkStyle?.curvature || 0)
         .linkDirectionalParticles(parameters.linkStyle?.particles || 0)
         .linkDirectionalParticleSpeed(parameters.linkStyle?.particleSpeed || 0.01)
@@ -893,44 +1122,6 @@ export function init3DForceGraph(
             return container;
         };
 
-        // Track current parameter values
-        const currentParams: GraphParameters = {
-            force: {
-                alphaDecay: parameters.force?.alphaDecay || 0.0228,
-                velocityDecay: parameters.force?.velocityDecay || 0.4,
-                alphaMin: parameters.force?.alphaMin || 0
-            },
-            dag: {
-                mode: parameters.dag?.mode || '',
-                levelDistance: parameters.dag?.levelDistance || 50
-            },
-            nodeStyle: {
-                size: parameters.nodeStyle?.size || 4,
-                opacity: parameters.nodeStyle?.opacity || 0.75,
-                resolution: parameters.nodeStyle?.resolution || 8
-            },
-            linkStyle: {
-                opacity: parameters.linkStyle?.opacity || 0.2,
-                width: parameters.linkStyle?.width || 1,
-                curvature: parameters.linkStyle?.curvature || 0,
-                particles: parameters.linkStyle?.particles || 0,
-                particleSpeed: parameters.linkStyle?.particleSpeed || 0.01
-            },
-            bloom: {
-                strength: parameters.bloom?.strength || 4.5,
-                radius: parameters.bloom?.radius || 1,
-                threshold: parameters.bloom?.threshold || 0
-            },
-            interaction: {
-                enableDrag: parameters.interaction?.enableDrag !== false
-            },
-            performance: {
-                warmupTicks: parameters.performance?.warmupTicks || 0,
-                cooldownTicks: parameters.performance?.cooldownTicks || Infinity,
-                cooldownTime: parameters.performance?.cooldownTime || 10000
-            }
-        };
-
         // Function to update parameters
         const updateSaveButton = () => {
             hasUnsavedChanges = true;
@@ -985,13 +1176,16 @@ export function init3DForceGraph(
 
         // Link Styling Section
         const linkSection = createSection('Link Styling');
+        // Note: Link opacity is controlled by path finding function when active
         linkSection.appendChild(createSlider('Link Opacity', 0, 1, 0.05, currentParams.linkStyle!.opacity!, (val) => {
-            Graph.linkOpacity(val);
+            // Update parameter and refresh graph to re-evaluate dynamic functions
             currentParams.linkStyle!.opacity = val;
+            Graph.refresh();
         }, updateSaveButton));
         linkSection.appendChild(createSlider('Link Width', 0, 10, 0.5, currentParams.linkStyle!.width!, (val) => {
-            Graph.linkWidth(val);
+            // Update parameter and refresh graph to re-evaluate dynamic functions  
             currentParams.linkStyle!.width = val;
+            Graph.refresh();
         }, updateSaveButton));
         linkSection.appendChild(createSlider('Link Curvature', 0, 1, 0.1, currentParams.linkStyle!.curvature!, (val) => {
             Graph.linkCurvature(val);
@@ -1090,7 +1284,7 @@ export function init3DForceGraph(
             Graph.nodeRelSize(4);
             Graph.nodeOpacity(0.75);
             Graph.nodeResolution(8);
-            Graph.linkOpacity(0.2);
+            // Graph.linkOpacity(0.2); // Handled by function when path is active
             Graph.linkWidth(1);
             Graph.linkCurvature(0);
             Graph.linkDirectionalParticles(0);
@@ -1243,8 +1437,131 @@ export function init3DForceGraph(
         currentRestriction = null;
     };
 
+    // Path finding algorithms
+    const findPath = (sourceId: string, targetId: string, directed: boolean): string[] => {
+        const nodes = Graph.graphData().nodes;
+        const links = Graph.graphData().links;
+        
+        // Build adjacency list
+        const adjacency = new Map<string, string[]>();
+        nodes.forEach((node: any) => {
+            adjacency.set(node.id, []);
+        });
+        
+        links.forEach((link: any) => {
+            const srcId = typeof link.source === 'string' ? link.source : link.source.id;
+            const tgtId = typeof link.target === 'string' ? link.target : link.target.id;
+            
+            adjacency.get(srcId)?.push(tgtId);
+            
+            // For undirected, add reverse edge
+            if (!directed) {
+                adjacency.get(tgtId)?.push(srcId);
+            }
+        });
+        
+        // BFS to find shortest path
+        const queue: { nodeId: string, path: string[] }[] = [{ nodeId: sourceId, path: [sourceId] }];
+        const visited = new Set<string>();
+        
+        while (queue.length > 0) {
+            const { nodeId, path } = queue.shift()!;
+            
+            if (nodeId === targetId) {
+                return path;
+            }
+            
+            if (visited.has(nodeId)) continue;
+            visited.add(nodeId);
+            
+            const neighbors = adjacency.get(nodeId) || [];
+            for (const neighbor of neighbors) {
+                if (!visited.has(neighbor)) {
+                    queue.push({ nodeId: neighbor, path: [...path, neighbor] });
+                }
+            }
+        }
+        
+        return []; // No path found
+    };
+    
+    // Function to update UI based on current state
+    const updatePathUI = () => {
+        // Update source button appearance
+        sourceButton.style.background = isSelectingSource ? 'rgba(0, 100, 200, 0.5)' : 
+                                      (sourceNode ? 'rgba(0, 200, 0, 0.3)' : 'rgba(0, 0, 0, 0.7)');
+        
+        // Update target button appearance  
+        targetButton.style.background = isSelectingTarget ? 'rgba(200, 0, 0, 0.5)' : 
+                                      (targetNode ? 'rgba(0, 200, 0, 0.3)' : 'rgba(0, 0, 0, 0.7)');
+        
+        // Show/hide path buttons
+        pathButtonsContainer.style.display = (sourceNode && targetNode) ? 'flex' : 'none';
+        
+        // Show/hide clear path button
+        clearPathButton.style.display = currentPath.length > 0 ? 'flex' : 'none';
+        
+        // Update graph colors
+        Graph.refresh();
+    };
+    
+    // Wire up source button
+    sourceButton.onclick = () => {
+        isSelectingSource = !isSelectingSource;
+        isSelectingTarget = false;
+        updatePathUI();
+    };
+    
+    // Wire up target button
+    targetButton.onclick = () => {
+        isSelectingTarget = !isSelectingTarget;
+        isSelectingSource = false;
+        updatePathUI();
+    };
+    
+    // Wire up directed path button
+    directedPathButton.onclick = () => {
+        if (sourceNode && targetNode) {
+            currentPath = findPath(sourceNode, targetNode, true);
+            updatePathUI();
+        }
+    };
+    
+    // Wire up undirected path button
+    undirectedPathButton.onclick = () => {
+        if (sourceNode && targetNode) {
+            currentPath = findPath(sourceNode, targetNode, false);
+            updatePathUI();
+        }
+    };
+    
+    // Wire up clear path button
+    clearPathButton.onclick = () => {
+        currentPath = [];
+        sourceNode = null;
+        targetNode = null;
+        isSelectingSource = false;
+        isSelectingTarget = false;
+        updatePathUI();
+    };
+
     // Add node click handler
     Graph.onNodeClick((node: any, event: MouseEvent) => {
+        // Handle path selection first
+        if (isSelectingSource) {
+            sourceNode = node.id;
+            isSelectingSource = false;
+            updatePathUI();
+            return;
+        }
+        
+        if (isSelectingTarget) {
+            targetNode = node.id;
+            isSelectingTarget = false;
+            updatePathUI();
+            return;
+        }
+        
         // Close existing popup if any
         closePopup();
 

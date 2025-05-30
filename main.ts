@@ -4,7 +4,6 @@ import {
 	PluginSettingTab,
 	Setting
 } from 'obsidian';
-import { initCytoscape } from './cytoscape-graph';
 import { init3DForceGraph } from './force-graph-3d';
 
 interface CytoQuerySettings {
@@ -34,10 +33,10 @@ export default class CytoQuery extends Plugin {
 		this.registerMarkdownCodeBlockProcessor('cytoquery', (source, el, _) => {
 			// Generate a random id
 			const randomId = Math.random().toString(36).substring(2, 15);
-			const div = el.createDiv({ cls: 'cytoquery', attr: { id: randomId } });
+			const div = el.createDiv({ cls: 'force-graph-3d', attr: { id: randomId } });
 
-			// Pass the source as query text
-			setTimeout(() => this.initCytoscape(randomId, source), 0);
+			// Pass the source as query text (convert cytoquery to 3d-force-graph)
+			setTimeout(() => this.init3DForceGraph(randomId, source, el), 0);
 		});
 
 		this.registerMarkdownCodeBlockProcessor('3d-force-graph', (source, el, ctx) => {
@@ -74,9 +73,6 @@ export default class CytoQuery extends Plugin {
 			if (graph._destructor) {
 				// For 3D-force-graph
 				graph._destructor();
-			} else if (graph.destroy) {
-				// For cytoscape
-				graph.destroy();
 			}
 		} catch (error) {
 			console.error(`Error cleaning up graph ${containerId}:`, error);
@@ -101,7 +97,7 @@ export default class CytoQuery extends Plugin {
 							}
 
 							// Check if this element contains any graph containers
-							const containers = removedNode.querySelectorAll('.cytoquery, .force-graph-3d');
+							const containers = removedNode.querySelectorAll('.force-graph-3d');
 							for (const container of Array.from(containers)) {
 								const containerId = container.id;
 								if (this.graphInstances.has(containerId)) {
@@ -159,16 +155,6 @@ export default class CytoQuery extends Plugin {
 		return result;
 	}
 
-	private initCytoscape(containerId: string, queryText: string = ''): void {
-		initCytoscape(
-			containerId, 
-			queryText, 
-			this.app, 
-			this.graphInstances, 
-			this.generateRandomStringFromSeed.bind(this), 
-			this.settings.publicMode
-		);
-	}
 
 	private init3DForceGraph(containerId: string, queryText: string = '', el?: HTMLElement, ctx?: any): void {
 		init3DForceGraph(
