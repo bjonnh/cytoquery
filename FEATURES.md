@@ -1,0 +1,9 @@
+- Visualize a graph of obsidian notes in 3d
+- Select nodes and display a green halo
+- Show a window when a node is selected that allows to:
+  - Center on that node
+  - Restrict to nodes linked to that node with a distance
+- Show a shortest link between two nodes. User click on blue button then start node then orange button then end node
+  - User can then choose directional travel or any direction (doesn't care which way the edge goes)
+- Parameters are editable and are saved in the text of the source element
+- Nodes can be locked in place (and this is persisted if the user press save)
