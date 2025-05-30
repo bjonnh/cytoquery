@@ -1,20 +1,198 @@
-import { App, CachedMetadata, getLinkpath, TFile } from 'obsidian';
+import { App, CachedMetadata, getLinkpath, TFile, MarkdownView } from 'obsidian';
 import ForceGraph3D from "./3d-force-graph.js";
 import * as THREE from "three";
 import { UnrealBloomPass } from 'UnrealBloomPass';
 import { NodeSet, EdgeSet } from './utils';
 import { QueryParser } from './query-language';
 
+interface GraphParameters {
+    force?: {
+        alphaDecay?: number;
+        velocityDecay?: number;
+        alphaMin?: number;
+    };
+    dag?: {
+        mode?: string;
+        levelDistance?: number;
+    };
+    nodeStyle?: {
+        size?: number;
+        opacity?: number;
+        resolution?: number;
+    };
+    linkStyle?: {
+        opacity?: number;
+        width?: number;
+        curvature?: number;
+        particles?: number;
+        particleSpeed?: number;
+    };
+    bloom?: {
+        strength?: number;
+        radius?: number;
+        threshold?: number;
+    };
+    interaction?: {
+        enableDrag?: boolean;
+    };
+    performance?: {
+        warmupTicks?: number;
+        cooldownTicks?: number;
+        cooldownTime?: number;
+    };
+    lockedNodes?: Array<{
+        name: string;
+        x: number;
+        y: number;
+        z: number;
+    }>;
+}
+
+function parseParametersAndQuery(source: string): { parameters: GraphParameters, query: string } {
+    const lines = source.split('\n');
+    let inParameters = false;
+    let parameterLines: string[] = [];
+    let queryLines: string[] = [];
+    
+    for (const line of lines) {
+        if (line.trim() === '---') {
+            inParameters = !inParameters;
+            continue;
+        }
+        
+        if (inParameters) {
+            parameterLines.push(line);
+        } else {
+            queryLines.push(line);
+        }
+    }
+    
+    // Parse parameters from YAML-like format
+    const parameters: GraphParameters = {};
+    let currentSection: string | null = null;
+    let currentLockedNode: any = null;
+    
+    for (let i = 0; i < parameterLines.length; i++) {
+        const line = parameterLines[i];
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('//')) continue;
+        
+        // Count leading spaces to determine indentation level
+        const indentLevel = line.length - line.trimStart().length;
+        
+        // Check if it's a section header (no indentation, ends with colon)
+        if (indentLevel === 0 && trimmed.endsWith(':') && !trimmed.includes(' ')) {
+            // Finish current locked node if any
+            if (currentLockedNode) {
+                if (!parameters.lockedNodes) parameters.lockedNodes = [];
+                parameters.lockedNodes.push(currentLockedNode);
+                currentLockedNode = null;
+            }
+            
+            currentSection = trimmed.slice(0, -1);
+            if (currentSection !== 'lockedNodes') {
+                parameters[currentSection as keyof GraphParameters] = {} as any;
+            }
+        }
+        // Check if it's a list item (for lockedNodes)
+        else if (trimmed.startsWith('- ') && currentSection === 'lockedNodes') {
+            // Start a new locked node
+            if (currentLockedNode) {
+                if (!parameters.lockedNodes) parameters.lockedNodes = [];
+                parameters.lockedNodes.push(currentLockedNode);
+            }
+            currentLockedNode = {};
+            const content = trimmed.substring(2).trim();
+            if (content.includes(':')) {
+                const [key, value] = content.split(':').map(s => s.trim());
+                if (key && value) {
+                    if (!isNaN(Number(value))) currentLockedNode[key] = Number(value);
+                    else currentLockedNode[key] = value.replace(/['"]/g, '');
+                }
+            }
+        }
+        // Check if it's a property of a locked node (indented under a list item)
+        else if (indentLevel >= 4 && currentLockedNode && currentSection === 'lockedNodes') {
+            // Add property to current locked node
+            const [key, value] = trimmed.split(':').map(s => s.trim());
+            if (key && value) {
+                if (!isNaN(Number(value))) currentLockedNode[key] = Number(value);
+                else currentLockedNode[key] = value.replace(/['"]/g, '');
+            }
+        }
+        // Check if it's a property of a section (indented under section header)
+        else if (indentLevel >= 2 && currentSection && currentSection !== 'lockedNodes' && trimmed.includes(':')) {
+            // Parse key-value pair for non-array sections
+            const [key, value] = trimmed.split(':').map(s => s.trim());
+            const section = parameters[currentSection as keyof GraphParameters] as any;
+            
+            // Parse value
+            if (value === 'true') section[key] = true;
+            else if (value === 'false') section[key] = false;
+            else if (value === 'Infinity') section[key] = Infinity;
+            else if (value === 'null') section[key] = null;
+            else if (!isNaN(Number(value))) section[key] = Number(value);
+            else section[key] = value.replace(/['"]/g, ''); // Remove quotes
+        }
+    }
+    
+    // Don't forget the last locked node
+    if (currentLockedNode) {
+        if (!parameters.lockedNodes) parameters.lockedNodes = [];
+        parameters.lockedNodes.push(currentLockedNode);
+    }
+    
+    return {
+        parameters,
+        query: queryLines.join('\n').trim()
+    };
+}
+
+function formatParameters(params: GraphParameters): string {
+    const lines: string[] = ['---'];
+    
+    const sections: (keyof GraphParameters)[] = ['force', 'dag', 'nodeStyle', 'linkStyle', 'bloom', 'interaction', 'performance'];
+    
+    for (const section of sections) {
+        if (params[section]) {
+            lines.push(`${section}:`);
+            const sectionData = params[section] as any;
+            for (const [key, value] of Object.entries(sectionData)) {
+                lines.push(`  ${key}: ${value}`);
+            }
+        }
+    }
+    
+    // Handle locked nodes separately
+    if (params.lockedNodes && params.lockedNodes.length > 0) {
+        lines.push('lockedNodes:');
+        for (const node of params.lockedNodes) {
+            lines.push(`  - name: ${node.name}`);
+            lines.push(`    x: ${node.x}`);
+            lines.push(`    y: ${node.y}`);
+            lines.push(`    z: ${node.z}`);
+        }
+    }
+    
+    lines.push('---');
+    return lines.join('\n');
+}
+
 export function init3DForceGraph(
     containerId: string, 
-    queryText: string = '', 
+    sourceText: string = '', 
     app: App, 
     graphInstances: Map<string, any>,
     generateRandomStringFromSeed: (input: string) => string,
-    publicMode: boolean
+    publicMode: boolean,
+    codeBlockElement?: HTMLElement,
+    ctx?: any
 ): void {
     const container = document.getElementById(containerId);
     if (!container) return;
+
+    // Parse parameters and query from source text
+    const { parameters, query: queryText } = parseParametersAndQuery(sourceText);
 
     // Check if there's an existing graph for this container and dispose of it
     if (graphInstances.has(containerId)) {
@@ -115,6 +293,36 @@ export function init3DForceGraph(
     // Initially hide if no locked nodes
     unlockAllButton.style.display = 'none';
     container.appendChild(unlockAllButton);
+
+    // Create save parameters button (next to unlock all)
+    const saveButton = document.createElement('button');
+    saveButton.innerHTML = '💾';
+    saveButton.title = 'Save Parameters to Code Block';
+    saveButton.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 100px;
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    saveButton.onmouseover = () => saveButton.style.background = 'rgba(0, 0, 0, 0.8)';
+    saveButton.onmouseout = () => saveButton.style.background = 'rgba(0, 0, 0, 0.7)';
+    
+    // Store reference to track parameter changes
+    let hasUnsavedChanges = false;
+    
+    container.appendChild(saveButton);
 
     // Create hamburger menu button
     const menuButton = document.createElement('button');
@@ -299,16 +507,24 @@ export function init3DForceGraph(
         // Use Math.max to ensure we don't take log of 0, and add 1 to ensure minimum value
         const val = Math.max(3, 50 * (3+linkCount));
 
-        return {
+        const nodeName = publicMode ? generateRandomStringFromSeed(node.id) : node.label;
+        
+        // Check if this node should be locked based on saved parameters
+        const lockedNode = parameters.lockedNodes?.find(ln => ln.name === nodeName);
+        
+        const graphNode: any = {
             id: node.id,
-            // Use node ID instead of label in public mode
-            name: publicMode ? generateRandomStringFromSeed(node.id) : node.label,
+            name: nodeName,
             val: val,
             color: node.color || "#666",
             shape: node.shape || 'sphere',
             material: node.material || 'default',
             size: node.size || 1
         };
+        
+        // If this node has saved locked position, we'll apply it after engine starts
+        
+        return graphNode;
     });
 
     const graphLinks = edgeSet.values().map(edge => ({
@@ -378,7 +594,7 @@ export function init3DForceGraph(
     // Track locked nodes
     const lockedNodes = new Set<string>();
 
-    // Initialize the 3D force graph
+    // Initialize the 3D force graph with default or loaded parameters
     const Graph = new ForceGraph3D(graphContainer)
         .backgroundColor('#000003')
         .nodeLabel('name')
@@ -386,8 +602,29 @@ export function init3DForceGraph(
         .nodeColor('color')
         .nodeVal('val')
         .linkColor(() => '#ccc')
-        .cooldownTime(10000)
-        .linkWidth(1)
+        // Apply performance parameters
+        .cooldownTime(parameters.performance?.cooldownTime || 10000)
+        .warmupTicks(parameters.performance?.warmupTicks || 0)
+        .cooldownTicks(parameters.performance?.cooldownTicks || Infinity)
+        // Apply force parameters
+        .d3AlphaDecay(parameters.force?.alphaDecay || 0.0228)
+        .d3VelocityDecay(parameters.force?.velocityDecay || 0.4)
+        .d3AlphaMin(parameters.force?.alphaMin || 0)
+        // Apply DAG parameters
+        .dagMode(parameters.dag?.mode as any || null)
+        .dagLevelDistance(parameters.dag?.levelDistance || 50)
+        // Apply node style parameters
+        .nodeRelSize(parameters.nodeStyle?.size || 4)
+        .nodeOpacity(parameters.nodeStyle?.opacity || 0.75)
+        .nodeResolution(parameters.nodeStyle?.resolution || 8)
+        // Apply link style parameters
+        .linkWidth(parameters.linkStyle?.width || 1)
+        .linkOpacity(parameters.linkStyle?.opacity || 0.2)
+        .linkCurvature(parameters.linkStyle?.curvature || 0)
+        .linkDirectionalParticles(parameters.linkStyle?.particles || 0)
+        .linkDirectionalParticleSpeed(parameters.linkStyle?.particleSpeed || 0.01)
+        // Apply interaction parameters
+        .enableNodeDrag(parameters.interaction?.enableDrag !== false)
         .linkDirectionalArrowLength(3.5)
         .linkDirectionalArrowRelPos(1)
         .width(graphContainer.clientWidth)
@@ -493,9 +730,9 @@ export function init3DForceGraph(
 
     Graph.enableNavigationControls();
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(graphContainer.clientWidth, graphContainer.clientHeight), 1.5, 0.4, 0.85);
-    bloomPass.strength = 4.5;
-    bloomPass.radius = 1;
-    bloomPass.threshold = 0.0;
+    bloomPass.strength = parameters.bloom?.strength || 4.5;
+    bloomPass.radius = parameters.bloom?.radius || 1;
+    bloomPass.threshold = parameters.bloom?.threshold || 0.0;
     Graph.postProcessingComposer().addPass(bloomPass);
     
     // Access the renderer and set its size properly
@@ -534,6 +771,44 @@ export function init3DForceGraph(
         }
     });
     resizeObserver.observe(graphContainer);
+    
+    // Apply locked nodes from parameters
+    if (parameters.lockedNodes && parameters.lockedNodes.length > 0) {
+        // Apply locked nodes after a short delay to ensure graph is initialized
+        setTimeout(() => {
+            const nodes = Graph.graphData().nodes;
+            
+            parameters.lockedNodes!.forEach(lockedNode => {
+                // Validate the locked node data
+                if (!lockedNode.name || 
+                    lockedNode.x === undefined || 
+                    lockedNode.y === undefined || 
+                    lockedNode.z === undefined ||
+                    isNaN(lockedNode.x) || 
+                    isNaN(lockedNode.y) || 
+                    isNaN(lockedNode.z)) {
+                    return;
+                }
+                
+                const node = nodes.find((n: any) => n.name === lockedNode.name);
+                if (node) {
+                    // Set the fixed positions (these lock the node in place)
+                    node.fx = lockedNode.x;
+                    node.fy = lockedNode.y;
+                    node.fz = lockedNode.z;
+                    
+                    // Track in our set
+                    lockedNodes.add(String(node.id));
+                }
+            });
+            
+            // Update unlock all button visibility
+            if (lockedNodes.size > 0) {
+                unlockAllButton.style.display = 'flex';
+            }
+        }, 1000);
+    }
+
 
     // Create settings controls
     const createSettingsControls = () => {
@@ -555,7 +830,7 @@ export function init3DForceGraph(
         };
 
         // Helper function to create a slider control
-        const createSlider = (label: string, min: number, max: number, step: number, value: number, onChange: (value: number) => void) => {
+        const createSlider = (label: string, min: number, max: number, step: number, value: number, onChange: (value: number) => void, onUpdate?: () => void) => {
             const container = document.createElement('div');
             container.style.cssText = 'margin-bottom: 15px;';
             
@@ -579,6 +854,7 @@ export function init3DForceGraph(
                 const val = parseFloat(slider.value);
                 valueSpan.textContent = val.toFixed(step < 1 ? 2 : 0);
                 onChange(val);
+                if (onUpdate) onUpdate();
             };
             
             container.appendChild(labelEl);
@@ -587,7 +863,7 @@ export function init3DForceGraph(
         };
 
         // Helper function to create a select control
-        const createSelect = (label: string, options: string[], value: string, onChange: (value: string) => void) => {
+        const createSelect = (label: string, options: string[], value: string, onChange: (value: string) => void, onUpdate?: () => void) => {
             const container = document.createElement('div');
             container.style.cssText = 'margin-bottom: 15px;';
             
@@ -607,47 +883,144 @@ export function init3DForceGraph(
                 select.appendChild(option);
             });
             
-            select.onchange = () => onChange(select.value);
+            select.onchange = () => {
+                onChange(select.value);
+                if (onUpdate) onUpdate();
+            };
             
             container.appendChild(labelEl);
             container.appendChild(select);
             return container;
         };
 
+        // Track current parameter values
+        const currentParams: GraphParameters = {
+            force: {
+                alphaDecay: parameters.force?.alphaDecay || 0.0228,
+                velocityDecay: parameters.force?.velocityDecay || 0.4,
+                alphaMin: parameters.force?.alphaMin || 0
+            },
+            dag: {
+                mode: parameters.dag?.mode || '',
+                levelDistance: parameters.dag?.levelDistance || 50
+            },
+            nodeStyle: {
+                size: parameters.nodeStyle?.size || 4,
+                opacity: parameters.nodeStyle?.opacity || 0.75,
+                resolution: parameters.nodeStyle?.resolution || 8
+            },
+            linkStyle: {
+                opacity: parameters.linkStyle?.opacity || 0.2,
+                width: parameters.linkStyle?.width || 1,
+                curvature: parameters.linkStyle?.curvature || 0,
+                particles: parameters.linkStyle?.particles || 0,
+                particleSpeed: parameters.linkStyle?.particleSpeed || 0.01
+            },
+            bloom: {
+                strength: parameters.bloom?.strength || 4.5,
+                radius: parameters.bloom?.radius || 1,
+                threshold: parameters.bloom?.threshold || 0
+            },
+            interaction: {
+                enableDrag: parameters.interaction?.enableDrag !== false
+            },
+            performance: {
+                warmupTicks: parameters.performance?.warmupTicks || 0,
+                cooldownTicks: parameters.performance?.cooldownTicks || Infinity,
+                cooldownTime: parameters.performance?.cooldownTime || 10000
+            }
+        };
+
+        // Function to update parameters
+        const updateSaveButton = () => {
+            hasUnsavedChanges = true;
+            saveButton.style.background = 'rgba(100, 200, 100, 0.3)';
+            saveButton.innerHTML = '💾*';
+            saveButton.title = 'Save Parameters to Code Block (unsaved changes)';
+        };
+
         // Force Engine Section
         const forceSection = createSection('Force Engine');
-        forceSection.appendChild(createSlider('Alpha Decay', 0, 0.1, 0.001, 0.0228, (val) => Graph.d3AlphaDecay(val)));
-        forceSection.appendChild(createSlider('Velocity Decay', 0, 1, 0.1, 0.4, (val) => Graph.d3VelocityDecay(val)));
-        forceSection.appendChild(createSlider('Alpha Min', 0, 0.1, 0.001, 0, (val) => Graph.d3AlphaMin(val)));
+        forceSection.appendChild(createSlider('Alpha Decay', 0, 0.1, 0.001, currentParams.force!.alphaDecay!, (val) => {
+            Graph.d3AlphaDecay(val);
+            currentParams.force!.alphaDecay = val;
+        }, updateSaveButton));
+        forceSection.appendChild(createSlider('Velocity Decay', 0, 1, 0.1, currentParams.force!.velocityDecay!, (val) => {
+            Graph.d3VelocityDecay(val);
+            currentParams.force!.velocityDecay = val;
+        }, updateSaveButton));
+        forceSection.appendChild(createSlider('Alpha Min', 0, 0.1, 0.001, currentParams.force!.alphaMin!, (val) => {
+            Graph.d3AlphaMin(val);
+            currentParams.force!.alphaMin = val;
+        }, updateSaveButton));
         settingsPanel.appendChild(forceSection);
 
         // DAG Mode Section
         const dagSection = createSection('DAG Layout');
-        dagSection.appendChild(createSelect('DAG Mode', ['', 'td', 'bu', 'lr', 'rl', 'radialout', 'radialin'], '', (val) => Graph.dagMode(val as any)));
-        dagSection.appendChild(createSlider('DAG Level Distance', 0, 200, 10, 50, (val) => Graph.dagLevelDistance(val)));
+        dagSection.appendChild(createSelect('DAG Mode', ['', 'td', 'bu', 'lr', 'rl', 'radialout', 'radialin'], currentParams.dag!.mode!, (val) => {
+            Graph.dagMode(val as any);
+            currentParams.dag!.mode = val;
+        }, updateSaveButton));
+        dagSection.appendChild(createSlider('DAG Level Distance', 0, 200, 10, currentParams.dag!.levelDistance!, (val) => {
+            Graph.dagLevelDistance(val);
+            currentParams.dag!.levelDistance = val;
+        }, updateSaveButton));
         settingsPanel.appendChild(dagSection);
 
         // Node Styling Section
         const nodeSection = createSection('Node Styling');
-        nodeSection.appendChild(createSlider('Node Size', 1, 20, 1, 4, (val) => Graph.nodeRelSize(val)));
-        nodeSection.appendChild(createSlider('Node Opacity', 0, 1, 0.05, 0.75, (val) => Graph.nodeOpacity(val)));
-        nodeSection.appendChild(createSlider('Node Resolution', 4, 32, 2, 8, (val) => Graph.nodeResolution(val)));
+        nodeSection.appendChild(createSlider('Node Size', 1, 20, 1, currentParams.nodeStyle!.size!, (val) => {
+            Graph.nodeRelSize(val);
+            currentParams.nodeStyle!.size = val;
+        }, updateSaveButton));
+        nodeSection.appendChild(createSlider('Node Opacity', 0, 1, 0.05, currentParams.nodeStyle!.opacity!, (val) => {
+            Graph.nodeOpacity(val);
+            currentParams.nodeStyle!.opacity = val;
+        }, updateSaveButton));
+        nodeSection.appendChild(createSlider('Node Resolution', 4, 32, 2, currentParams.nodeStyle!.resolution!, (val) => {
+            Graph.nodeResolution(val);
+            currentParams.nodeStyle!.resolution = val;
+        }, updateSaveButton));
         settingsPanel.appendChild(nodeSection);
 
         // Link Styling Section
         const linkSection = createSection('Link Styling');
-        linkSection.appendChild(createSlider('Link Opacity', 0, 1, 0.05, 0.2, (val) => Graph.linkOpacity(val)));
-        linkSection.appendChild(createSlider('Link Width', 0, 10, 0.5, 1, (val) => Graph.linkWidth(val)));
-        linkSection.appendChild(createSlider('Link Curvature', 0, 1, 0.1, 0, (val) => Graph.linkCurvature(val)));
-        linkSection.appendChild(createSlider('Link Particles', 0, 10, 1, 0, (val) => Graph.linkDirectionalParticles(val)));
-        linkSection.appendChild(createSlider('Link Particle Speed', 0, 0.1, 0.01, 0.01, (val) => Graph.linkDirectionalParticleSpeed(val)));
+        linkSection.appendChild(createSlider('Link Opacity', 0, 1, 0.05, currentParams.linkStyle!.opacity!, (val) => {
+            Graph.linkOpacity(val);
+            currentParams.linkStyle!.opacity = val;
+        }, updateSaveButton));
+        linkSection.appendChild(createSlider('Link Width', 0, 10, 0.5, currentParams.linkStyle!.width!, (val) => {
+            Graph.linkWidth(val);
+            currentParams.linkStyle!.width = val;
+        }, updateSaveButton));
+        linkSection.appendChild(createSlider('Link Curvature', 0, 1, 0.1, currentParams.linkStyle!.curvature!, (val) => {
+            Graph.linkCurvature(val);
+            currentParams.linkStyle!.curvature = val;
+        }, updateSaveButton));
+        linkSection.appendChild(createSlider('Link Particles', 0, 10, 1, currentParams.linkStyle!.particles!, (val) => {
+            Graph.linkDirectionalParticles(val);
+            currentParams.linkStyle!.particles = val;
+        }, updateSaveButton));
+        linkSection.appendChild(createSlider('Link Particle Speed', 0, 0.1, 0.01, currentParams.linkStyle!.particleSpeed!, (val) => {
+            Graph.linkDirectionalParticleSpeed(val);
+            currentParams.linkStyle!.particleSpeed = val;
+        }, updateSaveButton));
         settingsPanel.appendChild(linkSection);
 
         // Bloom Effect Section
         const bloomSection = createSection('Bloom Effect');
-        bloomSection.appendChild(createSlider('Bloom Strength', 0, 10, 0.1, 4.5, (val) => { bloomPass.strength = val; }));
-        bloomSection.appendChild(createSlider('Bloom Radius', 0, 2, 0.1, 1, (val) => { bloomPass.radius = val; }));
-        bloomSection.appendChild(createSlider('Bloom Threshold', 0, 1, 0.05, 0, (val) => { bloomPass.threshold = val; }));
+        bloomSection.appendChild(createSlider('Bloom Strength', 0, 10, 0.1, currentParams.bloom!.strength!, (val) => {
+            bloomPass.strength = val;
+            currentParams.bloom!.strength = val;
+        }, updateSaveButton));
+        bloomSection.appendChild(createSlider('Bloom Radius', 0, 2, 0.1, currentParams.bloom!.radius!, (val) => {
+            bloomPass.radius = val;
+            currentParams.bloom!.radius = val;
+        }, updateSaveButton));
+        bloomSection.appendChild(createSlider('Bloom Threshold', 0, 1, 0.05, currentParams.bloom!.threshold!, (val) => {
+            bloomPass.threshold = val;
+            currentParams.bloom!.threshold = val;
+        }, updateSaveButton));
         settingsPanel.appendChild(bloomSection);
 
         // Interaction Section
@@ -658,9 +1031,13 @@ export function init3DForceGraph(
         dragLabel.style.cssText = 'display: flex; align-items: center; font-size: 13px; cursor: pointer;';
         const dragCheckbox = document.createElement('input');
         dragCheckbox.type = 'checkbox';
-        dragCheckbox.checked = true;
+        dragCheckbox.checked = currentParams.interaction!.enableDrag!;
         dragCheckbox.style.cssText = 'margin-right: 8px;';
-        dragCheckbox.onchange = () => Graph.enableNodeDrag(dragCheckbox.checked);
+        dragCheckbox.onchange = () => {
+            Graph.enableNodeDrag(dragCheckbox.checked);
+            currentParams.interaction!.enableDrag = dragCheckbox.checked;
+            updateSaveButton();
+        };
         dragLabel.appendChild(dragCheckbox);
         dragLabel.appendChild(document.createTextNode('Enable Node Dragging'));
         enableDragToggle.appendChild(dragLabel);
@@ -669,9 +1046,18 @@ export function init3DForceGraph(
 
         // Performance Section
         const perfSection = createSection('Performance');
-        perfSection.appendChild(createSlider('Warmup Ticks', 0, 200, 10, 0, (val) => Graph.warmupTicks(val)));
-        perfSection.appendChild(createSlider('Cooldown Ticks', 0, 1000, 50, Infinity, (val) => Graph.cooldownTicks(val)));
-        perfSection.appendChild(createSlider('Cooldown Time (ms)', 0, 30000, 1000, 10000, (val) => Graph.cooldownTime(val)));
+        perfSection.appendChild(createSlider('Warmup Ticks', 0, 200, 10, currentParams.performance!.warmupTicks!, (val) => {
+            Graph.warmupTicks(val);
+            currentParams.performance!.warmupTicks = val;
+        }, updateSaveButton));
+        perfSection.appendChild(createSlider('Cooldown Ticks', 0, 1000, 50, currentParams.performance!.cooldownTicks!, (val) => {
+            Graph.cooldownTicks(val);
+            currentParams.performance!.cooldownTicks = val;
+        }, updateSaveButton));
+        perfSection.appendChild(createSlider('Cooldown Time (ms)', 0, 30000, 1000, currentParams.performance!.cooldownTime!, (val) => {
+            Graph.cooldownTime(val);
+            currentParams.performance!.cooldownTime = val;
+        }, updateSaveButton));
         settingsPanel.appendChild(perfSection);
 
 
@@ -722,6 +1108,61 @@ export function init3DForceGraph(
         };
         resetSection.appendChild(resetBtn);
         settingsPanel.appendChild(resetSection);
+        
+        // Configure save button onclick handler
+        saveButton.onclick = () => {
+            if (ctx && ctx.getSectionInfo && codeBlockElement) {
+                const view = app.workspace.getActiveViewOfType(MarkdownView);
+                if (view) {
+                    const sectionInfo = ctx.getSectionInfo(codeBlockElement);
+                    if (sectionInfo) {
+                        const { lineStart, lineEnd } = sectionInfo;
+                        const editor = view.editor;
+                        
+                        // Get the current query text
+                        const currentContent = editor.getRange(
+                            { line: lineStart + 1, ch: 0 },
+                            { line: lineEnd - 1, ch: editor.getLine(lineEnd - 1).length }
+                        );
+                        const { query } = parseParametersAndQuery(currentContent);
+                        
+                        // Collect locked nodes with their current positions
+                        const lockedNodeData: Array<{name: string, x: number, y: number, z: number}> = [];
+                        const nodes = Graph.graphData().nodes;
+                        lockedNodes.forEach(nodeId => {
+                            const node = nodes.find((n: any) => n.id === nodeId);
+                            if (node && node.fx !== undefined && node.fy !== undefined && node.fz !== undefined) {
+                                lockedNodeData.push({
+                                    name: (node as any).name,
+                                    x: node.fx,
+                                    y: node.fy,
+                                    z: node.fz
+                                });
+                            }
+                        });
+                        
+                        // Update currentParams with locked nodes
+                        currentParams.lockedNodes = lockedNodeData;
+                        
+                        // Format the new content with updated parameters
+                        const newContent = formatParameters(currentParams) + '\n' + query;
+                        
+                        // Replace the code block content (excluding the backticks)
+                        editor.replaceRange(
+                            newContent,
+                            { line: lineStart + 1, ch: 0 },
+                            { line: lineEnd - 1, ch: editor.getLine(lineEnd - 1).length }
+                        );
+                        
+                        // Reset button appearance
+                        hasUnsavedChanges = false;
+                        saveButton.style.background = 'rgba(0, 0, 0, 0.7)';
+                        saveButton.innerHTML = '💾';
+                        saveButton.title = 'Save Parameters to Code Block';
+                    }
+                }
+            }
+        };
     };
 
     createSettingsControls();
@@ -881,7 +1322,6 @@ export function init3DForceGraph(
                         await leaf.openFile(newFile);
                     } catch (error) {
                         // If creation fails (e.g., invalid file name), just create an empty leaf
-                        console.error('Failed to create file:', error);
                     }
                 }
             }
@@ -1069,7 +1509,6 @@ export function init3DForceGraph(
             // First, ensure we have the current node position
             const currentNode = Graph.graphData().nodes.find((n: any) => n.id === node.id);
             if (!currentNode) {
-                console.error('Node not found in graph data');
                 return;
             }
             

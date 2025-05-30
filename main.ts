@@ -40,13 +40,13 @@ export default class CytoQuery extends Plugin {
 			setTimeout(() => this.initCytoscape(randomId, source), 0);
 		});
 
-		this.registerMarkdownCodeBlockProcessor('3d-force-graph', (source, el, _) => {
+		this.registerMarkdownCodeBlockProcessor('3d-force-graph', (source, el, ctx) => {
 			// Generate a random id
 			const randomId = Math.random().toString(36).substring(2, 15);
 			const div = el.createDiv({ cls: 'force-graph-3d', attr: { id: randomId } });
 
-			// Pass the source as query text
-			setTimeout(() => this.init3DForceGraph(randomId, source), 0);
+			// Pass the source and element for updating
+			setTimeout(() => this.init3DForceGraph(randomId, source, el, ctx), 0);
 		});
 
 
@@ -170,14 +170,16 @@ export default class CytoQuery extends Plugin {
 		);
 	}
 
-	private init3DForceGraph(containerId: string, queryText: string = ''): void {
+	private init3DForceGraph(containerId: string, queryText: string = '', el?: HTMLElement, ctx?: any): void {
 		init3DForceGraph(
 			containerId, 
 			queryText, 
 			this.app, 
 			this.graphInstances, 
 			this.generateRandomStringFromSeed.bind(this), 
-			this.settings.publicMode
+			this.settings.publicMode,
+			el,
+			ctx
 		);
 	}
  }
