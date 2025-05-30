@@ -41,6 +41,22 @@ export function createAnimationLoop(
                 haloMesh1.material.opacity = pulseOpacity;
                 haloMesh2.material.opacity = pulseOpacity;
             }
+            
+            // Animate lock indicator arrows
+            const lockArrows = (nodeGroup as any).__lockArrows;
+            const baseArrowDistance = (nodeGroup as any).__baseArrowDistance;
+            
+            if (lockArrows && baseArrowDistance) {
+                // Create a back-and-forth motion along each arrow's axis
+                const oscillation = Math.sin(time * 2) * 0.3; // Oscillate 30% of base distance
+                const distance = baseArrowDistance * (1 + oscillation);
+                
+                // Update positions for each arrow
+                lockArrows[0].position.y = distance;  // Top arrow
+                lockArrows[1].position.y = -distance; // Bottom arrow
+                lockArrows[2].position.x = distance;  // Right arrow
+                lockArrows[3].position.x = -distance; // Left arrow
+            }
         });
         
         // Handle idle rotation if active
@@ -153,9 +169,10 @@ export function updateNodeObjectTracking(
     nodeGroup: THREE.Group,
     nodeId: string,
     animationState: AnimationState,
-    hasHalo: boolean
+    hasHalo: boolean,
+    hasLockIndicator: boolean = false
 ): void {
-    if (hasHalo && (nodeGroup as any).__haloContainer) {
+    if ((hasHalo && (nodeGroup as any).__haloContainer) || (hasLockIndicator && (nodeGroup as any).__lockArrows)) {
         animationState.nodeObjects.set(nodeId, nodeGroup);
     } else {
         animationState.nodeObjects.delete(nodeId);

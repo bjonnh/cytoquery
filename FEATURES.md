@@ -20,4 +20,6 @@
   - User can then choose directional travel or any direction (doesn't care which way the edge goes)
 - Parameters are editable and are saved in the text of the source element
 - Nodes can be locked in place (and this is persisted if the user press save)
+  - Locked nodes display visual indicators with 4 animated gold arrows pointing inward
+  - Arrows oscillate back and forth along their axis to draw attention
 - Idle rotation mode with toggle button and camera orbit functionality

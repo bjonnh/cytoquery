@@ -258,6 +258,56 @@ export function createNodeObject(node: any, uiState: GraphUIState): THREE.Group 
         (nodeGroup as any).__haloMesh2 = haloMesh2;
     }
     
+    // Add lock indicator for locked nodes
+    const isLocked = uiState.lockedNodes.has(String(node.id));
+    if (isLocked) {
+        // Create 4 arrow-like indicators pointing inward
+        const lockColor = new THREE.Color(0xffd700); // Gold color for lock
+        const arrowSize = size * 0.5; // Larger arrows
+        const arrowDistance = size * 2.5;
+        
+        // Create arrow geometry (cone pointing inward)
+        const arrowGeometry = new THREE.ConeGeometry(arrowSize * 0.6, arrowSize * 2, 12);
+        const arrowMaterial = new THREE.MeshBasicMaterial({
+            color: lockColor,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        // Create 4 arrows positioned around the node
+        const lockIndicators = new THREE.Group();
+        
+        // Top arrow (pointing down)
+        const topArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+        topArrow.position.y = arrowDistance;
+        topArrow.rotation.z = Math.PI; // Point downward
+        lockIndicators.add(topArrow);
+        
+        // Bottom arrow (pointing up)
+        const bottomArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+        bottomArrow.position.y = -arrowDistance;
+        lockIndicators.add(bottomArrow);
+        
+        // Right arrow (pointing left)
+        const rightArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+        rightArrow.position.x = arrowDistance;
+        rightArrow.rotation.z = Math.PI / 2; // Point left
+        lockIndicators.add(rightArrow);
+        
+        // Left arrow (pointing right)
+        const leftArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+        leftArrow.position.x = -arrowDistance;
+        leftArrow.rotation.z = -Math.PI / 2; // Point right
+        lockIndicators.add(leftArrow);
+        
+        nodeGroup.add(lockIndicators);
+        
+        // Store references for animation
+        (nodeGroup as any).__lockIndicators = lockIndicators;
+        (nodeGroup as any).__lockArrows = [topArrow, bottomArrow, rightArrow, leftArrow];
+        (nodeGroup as any).__baseArrowDistance = arrowDistance;
+    }
+    
     return nodeGroup;
 }
 
@@ -305,6 +355,11 @@ export function applyLockedNodes(Graph: any, parameters: GraphParameters, locked
                     lockedNodes.add(String(node.id));
                 }
             });
+            
+            // Force a re-render to show lock indicators after all nodes are tracked
+            if (lockedNodes.size > 0) {
+                Graph.nodeThreeObject(Graph.nodeThreeObject());
+            }
         }, 1000);
     }
 }

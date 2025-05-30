@@ -1,2 +1,4 @@
+- When in restricted view, I want the node that is the center of the restriction to look different. Not sure how, but make it cool
 - Button to disable the FPS limiter
 - Link opacity slider doesn't do anything
+- Show the full name of the note when passing the mouse on top of the center of the circular menu

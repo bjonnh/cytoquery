@@ -243,6 +243,9 @@ export function init3DForceGraph(
                     
                     // Update unlock all button visibility
                     uiElements.buttons.unlockAll.style.display = uiState.lockedNodes.size > 0 ? 'flex' : 'none';
+                    
+                    // Force re-render to update lock indicators
+                    Graph.nodeThreeObject(Graph.nodeThreeObject());
                 },
                 onRestrictToNode: (nodeId: string, depth: number) => {
                     const filteredData = restrictToNode(nodeId, depth, Graph.graphData());
@@ -369,7 +372,8 @@ export function init3DForceGraph(
                        uiState.sourceNode === node.id ||
                        uiState.targetNode === node.id ||
                        uiState.currentPath.includes(node.id);
-        updateNodeObjectTracking(nodeGroup, node.id, animationState, hasHalo);
+        const hasLockIndicator = uiState.lockedNodes.has(String(node.id));
+        updateNodeObjectTracking(nodeGroup, node.id, animationState, hasHalo, hasLockIndicator);
         return nodeGroup;
     });
 
@@ -413,6 +417,9 @@ export function init3DForceGraph(
                 }
             });
             uiElements.buttons.unlockAll.style.display = uiState.lockedNodes.size > 0 ? 'flex' : 'none';
+            
+            // Force re-render to update lock indicators
+            Graph.nodeThreeObject(Graph.nodeThreeObject());
         },
         onFindDirectedPath: () => {
             if (uiState.sourceNode && uiState.targetNode) {
@@ -486,7 +493,13 @@ export function init3DForceGraph(
 
     // Update unlock all button visibility based on initial locked nodes
     if (parameters.lockedNodes && parameters.lockedNodes.length > 0) {
+        // Set initial visibility
         uiElements.buttons.unlockAll.style.display = 'flex';
+        
+        // Update again after locked nodes are applied (matching the delay in applyLockedNodes)
+        setTimeout(() => {
+            uiElements.buttons.unlockAll.style.display = uiState.lockedNodes.size > 0 ? 'flex' : 'none';
+        }, 1100);
     }
 
     // Create settings callbacks
