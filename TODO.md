@@ -1,0 +1,2 @@
+- Button to disable the FPS limiter
+- Link opacity slider doesn't do anything

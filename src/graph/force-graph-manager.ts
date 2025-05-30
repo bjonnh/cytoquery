@@ -19,7 +19,7 @@ import {
 } from './graph-animations';
 import { findPath, restrictToNode } from './path-finding';
 import { createUIControls, createParsingErrorDisplay, UICallbacks } from './ui-components';
-import { createNodePopup, PopupCallbacks, PopupState } from './node-popup';
+import { createCircularMenu, CircularMenuCallbacks, CircularMenuState } from './circular-menu';
 import { createSettingsControls, SettingsCallbacks } from './settings-panel';
 
 export function init3DForceGraph(
@@ -181,47 +181,26 @@ export function init3DForceGraph(
         }
     };
 
-    // Track popup state
-    const popupState: PopupState = {
+    // Track menu state
+    const menuState: CircularMenuState = {
         currentRestriction: null,
-        publicMode
+        publicMode,
+        sourceNode: uiState.sourceNode,
+        targetNode: uiState.targetNode
     };
 
-    // Create popup cleanup
-    let currentPopup: { cleanup: () => void } | null = null;
-    const closePopup = () => {
-        if (currentPopup) {
-            currentPopup.cleanup();
-            currentPopup = null;
+    // Create menu cleanup
+    let currentMenu: { cleanup: () => void } | null = null;
+    const closeMenu = () => {
+        if (currentMenu) {
+            currentMenu.cleanup();
+            currentMenu = null;
         }
     };
 
     // Create graph callbacks
     const graphCallbacks: GraphCallbacks = {
         onNodeClick: (node: any, event: MouseEvent) => {
-            // Handle path selection first
-            if (isSelectingSource) {
-                uiState.sourceNode = node.id;
-                isSelectingSource = false;
-                // Clear selection when node becomes source
-                if (uiState.selectedNode === node.id) {
-                    uiState.selectedNode = null;
-                }
-                updatePathUI();
-                return;
-            }
-            
-            if (isSelectingTarget) {
-                uiState.targetNode = node.id;
-                isSelectingTarget = false;
-                // Clear selection when node becomes target
-                if (uiState.selectedNode === node.id) {
-                    uiState.selectedNode = null;
-                }
-                updatePathUI();
-                return;
-            }
-            
             // Toggle node selection (allow deselection by clicking again)
             if (uiState.selectedNode === node.id) {
                 uiState.selectedNode = null; // Deselect if already selected
@@ -232,11 +211,15 @@ export function init3DForceGraph(
             // Refresh the graph to update halo displays
             Graph.refresh();
             
-            // Close existing popup if any
-            closePopup();
+            // Close existing menu if any
+            closeMenu();
 
-            // Create node popup with callbacks
-            const popupCallbacks: PopupCallbacks = {
+            // Update menu state
+            menuState.sourceNode = uiState.sourceNode;
+            menuState.targetNode = uiState.targetNode;
+
+            // Create circular menu with callbacks
+            const menuCallbacks: CircularMenuCallbacks = {
                 onGoToPage: async (nodeId: string) => {
                     await openFileInNewTab(app, nodeId, publicMode);
                 },
@@ -264,11 +247,11 @@ export function init3DForceGraph(
                 onRestrictToNode: (nodeId: string, depth: number) => {
                     const filteredData = restrictToNode(nodeId, depth, Graph.graphData());
                     Graph.graphData(filteredData);
-                    popupState.currentRestriction = { nodeId, depth };
+                    menuState.currentRestriction = { nodeId, depth };
                 },
                 onUnrestrict: () => {
                     Graph.graphData(graphData);
-                    popupState.currentRestriction = null;
+                    menuState.currentRestriction = null;
                 },
                 onCenterOnNode: (node: any, distance: number) => {
                     // First, ensure we have the current node position
@@ -320,18 +303,36 @@ export function init3DForceGraph(
                     setTimeout(() => {
                         Graph.enableNavigationControls();
                     }, 1100);
+                },
+                onSetAsSource: (nodeId: string) => {
+                    uiState.sourceNode = nodeId;
+                    isSelectingSource = false;
+                    // Clear selection when node becomes source
+                    if (uiState.selectedNode === nodeId) {
+                        uiState.selectedNode = null;
+                    }
+                    updatePathUI();
+                },
+                onSetAsTarget: (nodeId: string) => {
+                    uiState.targetNode = nodeId;
+                    isSelectingTarget = false;
+                    // Clear selection when node becomes target
+                    if (uiState.selectedNode === nodeId) {
+                        uiState.selectedNode = null;
+                    }
+                    updatePathUI();
                 }
             };
 
-            const result = createNodePopup(
+            const result = createCircularMenu(
                 container,
                 node,
                 event,
                 uiState.lockedNodes.has(node.id),
-                popupCallbacks,
-                popupState
+                menuCallbacks,
+                menuState
             );
-            currentPopup = result;
+            currentMenu = result;
         }
     };
 
@@ -383,18 +384,6 @@ export function init3DForceGraph(
 
     // Function to update UI based on current state
     const updatePathUI = () => {
-        // Update source button appearance
-        uiElements.buttons.source.style.background = isSelectingSource ? 'rgba(0, 100, 200, 0.5)' : 
-                                      (uiState.sourceNode ? 'rgba(0, 200, 0, 0.3)' : 'rgba(0, 0, 0, 0.7)');
-        uiElements.buttons.source.onmouseout = () => 
-            uiElements.buttons.source.style.background = isSelectingSource ? 'rgba(0, 100, 200, 0.5)' : 'rgba(0, 0, 0, 0.7)';
-        
-        // Update target button appearance  
-        uiElements.buttons.target.style.background = isSelectingTarget ? 'rgba(255, 165, 0, 0.5)' : 
-                                      (uiState.targetNode ? 'rgba(0, 200, 0, 0.3)' : 'rgba(0, 0, 0, 0.7)');
-        uiElements.buttons.target.onmouseout = () => 
-            uiElements.buttons.target.style.background = isSelectingTarget ? 'rgba(255, 165, 0, 0.5)' : 'rgba(0, 0, 0, 0.7)';
-        
         // Show/hide path buttons
         uiElements.containers.pathButtons.style.display = (uiState.sourceNode && uiState.targetNode) ? 'flex' : 'none';
         
@@ -424,16 +413,6 @@ export function init3DForceGraph(
                 }
             });
             uiElements.buttons.unlockAll.style.display = uiState.lockedNodes.size > 0 ? 'flex' : 'none';
-        },
-        onSourceSelect: () => {
-            isSelectingSource = !isSelectingSource;
-            isSelectingTarget = false;
-            updatePathUI();
-        },
-        onTargetSelect: () => {
-            isSelectingTarget = !isSelectingTarget;
-            isSelectingSource = false;
-            updatePathUI();
         },
         onFindDirectedPath: () => {
             if (uiState.sourceNode && uiState.targetNode) {

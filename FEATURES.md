@@ -1,9 +1,23 @@
 - Visualize a graph of obsidian notes in 3d
 - Select nodes and display a green halo
-- Show a window when a node is selected that allows to:
-  - Center on that node
-  - Restrict to nodes linked to that node with a distance
-- Show a shortest link between two nodes. User click on blue button then start node then orange button then end node
+- Show a circular menu when a node is clicked that allows to:
+  - Open the node in a new tab (📄)
+  - Lock/unlock the node in place (🔒/🔓)
+  - Set the node as start point for path finding (🎯)
+  - Set the node as end point for path finding (🏁)
+  - Center the camera on that node with adjustable distance (👁️)
+  - Restrict the graph to show only neighbors within a specified depth (🔍)
+  - Remove all restrictions (↩️) - appears when restrictions are active
+- Circular menu features:
+  - Radial layout with icons positioned in a circle around the click point
+  - Smooth animations for menu items appearing
+  - Central display showing the node name
+  - Hover effects and visual feedback
+  - Sub-dialogs for advanced options (center distance, neighbor depth)
+  - Draggable menu and dialogs - drag by clicking on the center node or dialog title
+  - Automatic bounds checking to keep menu and dialogs within screen
+- Show a shortest link between two nodes. User can set start/end nodes via circular menu
   - User can then choose directional travel or any direction (doesn't care which way the edge goes)
 - Parameters are editable and are saved in the text of the source element
 - Nodes can be locked in place (and this is persisted if the user press save)
+- Idle rotation mode with toggle button and camera orbit functionality

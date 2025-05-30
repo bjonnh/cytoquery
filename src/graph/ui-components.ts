@@ -3,8 +3,6 @@ import { GraphParameters } from '../types/graph';
 export interface UICallbacks {
     onResetView: () => void;
     onUnlockAll: () => void;
-    onSourceSelect: () => void;
-    onTargetSelect: () => void;
     onFindDirectedPath: () => void;
     onFindUndirectedPath: () => void;
     onClearPath: () => void;
@@ -17,8 +15,6 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     buttons: {
         resetView: HTMLButtonElement;
         unlockAll: HTMLButtonElement;
-        source: HTMLButtonElement;
-        target: HTMLButtonElement;
         directedPath: HTMLButtonElement;
         undirectedPath: HTMLButtonElement;
         clearPath: HTMLButtonElement;
@@ -86,64 +82,12 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     unlockAllButton.style.display = 'none';
     container.appendChild(unlockAllButton);
 
-    // Create source node selection button
-    const sourceButton = document.createElement('button');
-    sourceButton.innerHTML = '🔵';
-    sourceButton.title = 'Select Source Node for Path Finding';
-    sourceButton.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 100px;
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
-    sourceButton.onmouseover = () => sourceButton.style.background = 'rgba(0, 0, 0, 0.8)';
-    sourceButton.onclick = callbacks.onSourceSelect;
-    container.appendChild(sourceButton);
-
-    // Create target node selection button
-    const targetButton = document.createElement('button');
-    targetButton.innerHTML = '🟠';
-    targetButton.title = 'Select Target Node for Path Finding';
-    targetButton.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 142px;
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
-    targetButton.onmouseover = () => targetButton.style.background = 'rgba(0, 0, 0, 0.8)';
-    targetButton.onclick = callbacks.onTargetSelect;
-    container.appendChild(targetButton);
-
     // Create find path buttons container
     const pathButtonsContainer = document.createElement('div');
     pathButtonsContainer.style.cssText = `
         position: absolute;
         top: 16px;
-        left: 184px;
+        left: 100px;
         display: flex;
         gap: 4px;
         z-index: 1000;
@@ -205,7 +149,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     clearPathButton.style.cssText = `
         position: absolute;
         top: 16px;
-        left: 264px;
+        left: 180px;
         width: 36px;
         height: 36px;
         background: rgba(200, 100, 100, 0.3);
@@ -232,7 +176,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     saveButton.style.cssText = `
         position: absolute;
         top: 16px;
-        left: 306px;
+        left: 222px;
         width: 36px;
         height: 36px;
         background: rgba(0, 0, 0, 0.7);
@@ -259,7 +203,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     idleRotationButton.style.cssText = `
         position: absolute;
         top: 16px;
-        left: 348px;
+        left: 264px;
         width: 36px;
         height: 36px;
         background: rgba(0, 0, 0, 0.7);
@@ -330,8 +274,6 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
         buttons: {
             resetView: resetViewButton,
             unlockAll: unlockAllButton,
-            source: sourceButton,
-            target: targetButton,
             directedPath: directedPathButton,
             undirectedPath: undirectedPathButton,
             clearPath: clearPathButton,
