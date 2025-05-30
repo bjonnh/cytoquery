@@ -949,9 +949,6 @@ export function init3DForceGraph(
             const isInPath = currentPath.includes(node.id);
             
             if (isSelected || isSource || isTarget || isInPath) {
-                // Create halo geometry - a ring around the node
-                const haloGeometry = new THREE.RingGeometry(size * 1.5, size * 1.8, 32);
-                
                 // Determine halo color based on node state (priority order)
                 let haloColor;
                 if (isSelected) {
@@ -964,22 +961,42 @@ export function init3DForceGraph(
                     haloColor = new THREE.Color(0xff0000); // Red for path nodes
                 }
                 
-                const haloMaterial = new THREE.MeshBasicMaterial({
+                // Create double halo system with two rings
+                
+                // First ring - slightly larger, will rotate around Y-axis
+                const haloGeometry1 = new THREE.RingGeometry(size * 1.6, size * 1.9, 32);
+                const haloMaterial1 = new THREE.MeshBasicMaterial({
                     color: haloColor,
                     transparent: true,
-                    opacity: 0.6,
+                    opacity: 0.5,
                     side: THREE.DoubleSide
                 });
+                const haloMesh1 = new THREE.Mesh(haloGeometry1, haloMaterial1);
                 
-                const haloMesh = new THREE.Mesh(haloGeometry, haloMaterial);
+                // Second ring - slightly smaller, will rotate around X-axis  
+                const haloGeometry2 = new THREE.RingGeometry(size * 1.4, size * 1.7, 32);
+                const haloMaterial2 = new THREE.MeshBasicMaterial({
+                    color: haloColor,
+                    transparent: true,
+                    opacity: 0.5,
+                    side: THREE.DoubleSide
+                });
+                const haloMesh2 = new THREE.Mesh(haloGeometry2, haloMaterial2);
                 
-                // Make halo face the camera by rotating it
-                haloMesh.lookAt(new THREE.Vector3(0, 0, 1));
+                // Position the second ring perpendicular to the first
+                haloMesh2.rotation.x = Math.PI / 2;
                 
-                nodeGroup.add(haloMesh);
+                // Create a container for both halos
+                const haloContainer = new THREE.Group();
+                haloContainer.add(haloMesh1);
+                haloContainer.add(haloMesh2);
                 
-                // Store reference to halo for potential updates
-                (nodeGroup as any).__haloMesh = haloMesh;
+                nodeGroup.add(haloContainer);
+                
+                // Store references to both halos for animation updates
+                (nodeGroup as any).__haloContainer = haloContainer;
+                (nodeGroup as any).__haloMesh1 = haloMesh1;
+                (nodeGroup as any).__haloMesh2 = haloMesh2;
                 
                 // Store nodeGroup for animation updates
                 nodeObjects.set(node.id, nodeGroup);
@@ -1001,19 +1018,35 @@ export function init3DForceGraph(
     // Store node object references for animation
     const nodeObjects = new Map<string, THREE.Group>();
     
-    // Set up animation loop for pulsing halos
+    // Set up animation loop for rotating double halos
     const animate = () => {
         const time = Date.now() * 0.003;
         
         // Update halo animations for tracked nodes
         nodeObjects.forEach((nodeGroup, nodeId) => {
-            const haloMesh = (nodeGroup as any).__haloMesh;
-            if (haloMesh) {
-                const pulseScale = 1.0 + Math.sin(time + nodeId.length) * 0.15;
-                haloMesh.scale.setScalar(pulseScale);
+            const haloContainer = (nodeGroup as any).__haloContainer;
+            const haloMesh1 = (nodeGroup as any).__haloMesh1;
+            const haloMesh2 = (nodeGroup as any).__haloMesh2;
+            
+            if (haloContainer && haloMesh1 && haloMesh2) {
+                // Pulsing scale effect for the entire container
+                const pulseScale = 1.0 + Math.sin(time + nodeId.length) * 0.1;
+                haloContainer.scale.setScalar(pulseScale);
                 
-                // Update halo opacity for breathing effect
-                haloMesh.material.opacity = 0.4 + Math.sin(time * 2 + nodeId.length) * 0.2;
+                // Rotating animations on perpendicular axes for clean intersecting effect
+                // First ring rotates around Y-axis (horizontal spin)
+                haloMesh1.rotation.y = time * 1.2 + nodeId.length;
+                
+                // Second ring rotates around X-axis (vertical spin) - creates a gyroscope effect
+                haloMesh2.rotation.x = time * -0.8 + nodeId.length * 0.5;
+                
+                // Add slight wobble to the container for extra dynamism
+                haloContainer.rotation.z = Math.sin(time * 0.3 + nodeId.length) * 0.1;
+                
+                // Breathing opacity effect (synchronized for both rings)
+                const pulseOpacity = 0.3 + Math.sin(time * 1.5 + nodeId.length) * 0.2;
+                haloMesh1.material.opacity = pulseOpacity;
+                haloMesh2.material.opacity = pulseOpacity;
             }
         });
         
