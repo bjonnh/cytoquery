@@ -47,18 +47,17 @@ jobs:
       with:
         name: obsidian-cytoquery-build
         path: |
-          main.js
-          manifest.json
-          styles.css
+          build/main.js
+          build/manifest.json
+          build/styles.css
         if-no-files-found: error
     
     - name: Prepare demo files
       run: |
         mkdir -p demo-dist
-        # main.js is in root after build
-        cp main.js demo-dist/
-        # styles.css is in both root and build/
-        cp styles.css demo-dist/
+        # Copy from build directory
+        cp build/main.js demo-dist/
+        cp build/styles.css demo-dist/
         cp demo/index.html demo-dist/
     
     - name: Upload demo artifacts
@@ -84,7 +83,13 @@ jobs:
     
     - name: Create release bundle
       run: |
+        # Files are already in the release directory from the artifact download
         cd release
+        # Remove the build/ prefix from files
+        mv build/main.js . || true
+        mv build/manifest.json . || true
+        mv build/styles.css . || true
+        rmdir build || true
         zip -r ../obsidian-cytoquery.zip main.js manifest.json styles.css
         cd ..
     
@@ -129,7 +134,13 @@ jobs:
     
     - name: Create release bundle
       run: |
+        # Files are already in the release directory from the artifact download
         cd release
+        # Remove the build/ prefix from files
+        mv build/main.js . || true
+        mv build/manifest.json . || true
+        mv build/styles.css . || true
+        rmdir build || true
         zip -r ../obsidian-cytoquery-beta.zip main.js manifest.json styles.css
         cd ..
     
