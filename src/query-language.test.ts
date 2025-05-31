@@ -28,7 +28,7 @@ describe('QueryParser', () => {
 
     it('should parse multiple rules', () => {
       const query = `default => color("#FF0000")
-tag("important") => color("#00FF00")`;
+tagged("important") => color("#00FF00")`;
       parser.parseQuery(query);
       
       const node1: Node = { id: 'test1', label: 'Test1' };
@@ -48,7 +48,7 @@ tag("important") => color("#00FF00")`;
       const query = `
 default => color("#FF0000")
 
-tag("test") => color("#00FF00")
+tagged("test") => color("#00FF00")
 `;
       parser.parseQuery(query);
       
@@ -176,9 +176,34 @@ tag("test") => color("#00FF00")
     });
   });
 
-  describe('tag condition', () => {
-    it('should match nodes with specified tag', () => {
+  describe('tag condition (tag nodes)', () => {
+    it('should match tag nodes themselves', () => {
       const query = 'tag("project") => color("orange")';
+      parser.parseQuery(query);
+      
+      const tagNode: Node = { id: 'tag:project', label: '#project' };
+      const fileNode: Node = { id: 'note1', label: 'Note1' };
+      
+      parser.applyRules([tagNode, fileNode]);
+      
+      expect(tagNode.color).toBe('orange');
+      expect(fileNode.color).toBeUndefined();
+    });
+
+    it('should handle case-insensitive matching for tag nodes', () => {
+      const query = 'tag("Project") => color("orange")';
+      parser.parseQuery(query);
+      
+      const tagNode: Node = { id: 'tag:project', label: '#project' };
+      parser.applyRules([tagNode]);
+      
+      expect(tagNode.color).toBe('orange');
+    });
+  });
+
+  describe('tagged condition (pages with tags)', () => {
+    it('should match nodes with specified tag', () => {
+      const query = 'tagged("project") => color("orange")';
       parser.parseQuery(query);
       
       metadata.set('note1', {
@@ -199,7 +224,7 @@ tag("test") => color("#00FF00")
     });
 
     it('should handle tags with or without hash prefix', () => {
-      const query = 'tag("project") => color("orange")';
+      const query = 'tagged("project") => color("orange")';
       parser.parseQuery(query);
       
       metadata.set('note1', {
@@ -213,7 +238,7 @@ tag("test") => color("#00FF00")
     });
 
     it('should handle frontmatter tags', () => {
-      const query = 'tag("project") => color("orange")';
+      const query = 'tagged("project") => color("orange")';
       parser.parseQuery(query);
       
       metadata.set('note1', {
@@ -229,7 +254,7 @@ tag("test") => color("#00FF00")
     });
 
     it('should handle case-insensitive tag matching', () => {
-      const query = 'tag("Project") => color("orange")';
+      const query = 'tagged("Project") => color("orange")';
       parser.parseQuery(query);
       
       metadata.set('note1', {
@@ -240,6 +265,79 @@ tag("test") => color("#00FF00")
       parser.applyRules([node]);
       
       expect(node.color).toBe('orange');
+    });
+  });
+
+  describe('node name selector', () => {
+    it('should match nodes by exact name', () => {
+      const query = '"My Note" => color("red"), size(2)';
+      parser.parseQuery(query);
+      
+      const node1: Node = { id: 'path/to/note.md', label: 'My Note' };
+      const node2: Node = { id: 'path/to/other.md', label: 'Other Note' };
+      
+      parser.applyRules([node1, node2]);
+      
+      expect(node1.color).toBe('red');
+      expect(node1.size).toBe(2);
+      expect(node2.color).toBeUndefined();
+      expect(node2.size).toBeUndefined();
+    });
+
+    it('should handle case-insensitive matching for node names', () => {
+      const query = '"my note" => color("blue")';
+      parser.parseQuery(query);
+      
+      const node: Node = { id: 'path/to/note.md', label: 'My Note' };
+      parser.applyRules([node]);
+      
+      expect(node.color).toBe('blue');
+    });
+
+    it('should match tag nodes by name including hash', () => {
+      const query = '"#important" => color("gold"), size(3)';
+      parser.parseQuery(query);
+      
+      const tagNode: Node = { id: 'tag:important', label: '#important' };
+      const fileNode: Node = { id: 'file.md', label: 'important' };
+      
+      parser.applyRules([tagNode, fileNode]);
+      
+      expect(tagNode.color).toBe('gold');
+      expect(tagNode.size).toBe(3);
+      expect(fileNode.color).toBeUndefined();
+    });
+
+    it('should work with comma-separated conditions', () => {
+      const query = '"Note 1", "Note 2" => color("green")';
+      parser.parseQuery(query);
+      
+      const node1: Node = { id: 'note1.md', label: 'Note 1' };
+      const node2: Node = { id: 'note2.md', label: 'Note 2' };
+      const node3: Node = { id: 'note3.md', label: 'Note 3' };
+      
+      parser.applyRules([node1, node2, node3]);
+      
+      expect(node1.color).toBe('green');
+      expect(node2.color).toBe('green');
+      expect(node3.color).toBeUndefined();
+    });
+
+    it('should work in combination with other selectors', () => {
+      const query = 'tag("important"), "Special Note" => color("purple"), size(4)';
+      parser.parseQuery(query);
+      
+      const tagNode: Node = { id: 'tag:important', label: '#important' };
+      const specialNode: Node = { id: 'special.md', label: 'Special Note' };
+      const normalNode: Node = { id: 'normal.md', label: 'Normal Note' };
+      
+      parser.applyRules([tagNode, specialNode, normalNode]);
+      
+      expect(tagNode.color).toBe('purple');
+      expect(tagNode.size).toBe(4);
+      expect(specialNode.color).toBe('purple');
+      expect(specialNode.size).toBe(4);
+      expect(normalNode.color).toBeUndefined();
     });
   });
 
@@ -378,7 +476,7 @@ tag("test") => color("#00FF00")
 
     it('should apply rules in order', () => {
       const query = `default => color("red")
-tag("important") => color("blue")`;
+tagged("important") => color("blue")`;
       parser.parseQuery(query);
       
       metadata.set('test', {
@@ -394,7 +492,7 @@ tag("important") => color("blue")`;
 
   describe('comma-separated conditions', () => {
     it('should handle multiple conditions on same rule', () => {
-      const query = 'tag("important"), tag("project") => color("green")';
+      const query = 'tagged("important"), tagged("project") => color("green")';
       parser.parseQuery(query);
       
       const node1: Node = { id: 'test1', label: 'Test1' };
@@ -435,7 +533,7 @@ tag("important") => color("blue")`;
     });
 
     it('should handle mixed condition types', () => {
-      const query = 'default, tag("special") => size(3)';
+      const query = 'default, tagged("special") => size(3)';
       parser.parseQuery(query);
       
       metadata.set('test2', {
@@ -465,7 +563,7 @@ tag("important") => color("blue")`;
     });
 
     it('should handle multiple actions with different types', () => {
-      const query = 'tag("special") => color("#FF00FF"), shape("cube"), material("glass"), size(5)';
+      const query = 'tagged("special") => color("#FF00FF"), shape("cube"), material("glass"), size(5)';
       parser.parseQuery(query);
       
       metadata.set('test', {
@@ -497,7 +595,7 @@ tag("important") => color("blue")`;
   describe('named parameters', () => {
     it('should define and use named parameters', () => {
       const query = `:highlight = color("yellow"), size(3)
-tag("important") => :highlight`;
+tagged("important") => :highlight`;
       parser.parseQuery(query);
       
       metadata.set('test', {
@@ -514,8 +612,8 @@ tag("important") => :highlight`;
     it('should handle multiple named parameter definitions', () => {
       const query = `:bluethings = color("blue"), shape("sphere")
 :redthings = color("red"), shape("cube")
-tag("water") => :bluethings
-tag("fire") => :redthings`;
+tagged("water") => :bluethings
+tagged("fire") => :redthings`;
       parser.parseQuery(query);
       
       const node1: Node = { id: 'test1', label: 'Test1' };
@@ -569,7 +667,7 @@ link_to("treasure") => :fancy`;
 
   describe('complex combinations', () => {
     it('should handle comma-separated conditions with comma-separated actions', () => {
-      const query = 'tag("A"), tag("B") => color("purple"), size(4)';
+      const query = 'tagged("A"), tagged("B") => color("purple"), size(4)';
       parser.parseQuery(query);
       
       const node1: Node = { id: 'test1', label: 'Test1' };
@@ -615,8 +713,8 @@ link_to("hub"), link_from("index") => :style`;
     it('should handle mixed rules with different syntaxes', () => {
       const query = `:highlight = color("yellow"), size(5)
 default => color("gray")
-tag("important") => :highlight
-tag("A"), tag("B") => color("blue"), shape("cube")`;
+tagged("important") => :highlight
+tagged("A"), tagged("B") => color("blue"), shape("cube")`;
       parser.parseQuery(query);
       
       const node1: Node = { id: 'normal', label: 'Normal' };
@@ -646,7 +744,7 @@ tag("A"), tag("B") => color("blue"), shape("cube")`;
 
   describe('whitespace handling', () => {
     it('should handle spaces in comma-separated lists', () => {
-      const query = 'tag("A") , tag("B") => color("red") , size(2)';
+      const query = 'tagged("A") , tagged("B") => color("red") , size(2)';
       parser.parseQuery(query);
       
       metadata.set('test', {
@@ -661,7 +759,7 @@ tag("A"), tag("B") => color("blue"), shape("cube")`;
     });
 
     it('should handle whitespace around named parameters', () => {
-      const query = ' :style = color("blue") , size(3) \ntag("test") => :style ';
+      const query = ' :style = color("blue") , size(3) \ntagged("test") => :style ';
       parser.parseQuery(query);
       
       metadata.set('test', {
@@ -713,11 +811,11 @@ tag("A"), tag("B") => color("blue"), shape("cube")`;
 
     it('should validate new syntax features', () => {
       const validQueries = [
-        'tag("A"), tag("B") => color("red")',
+        'tagged("A"), tagged("B") => color("red")',
         'default => color("red"), size(2)',
         ':style = color("blue"), size(3)',
-        'tag("test") => :style',
-        ':fancy = color("#FFD700"), shape("cube")\ntag("treasure") => :fancy'
+        'tagged("test") => :style',
+        ':fancy = color("#FFD700"), shape("cube")\ntagged("treasure") => :fancy'
       ];
 
       validQueries.forEach(query => {

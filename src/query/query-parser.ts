@@ -57,7 +57,7 @@ interface ConditionListCstNode {
 
 interface ConditionCstNode {
   children: {
-    Identifier: IToken[];
+    Identifier?: IToken[];
     LParen?: IToken[];
     StringLiteral?: IToken[];
     RParen?: IToken[];
@@ -132,12 +132,21 @@ class QueryGrammar extends CstParser {
   });
 
   private condition = this.RULE("condition", () => {
-    this.CONSUME(Identifier);
-    this.OPTION(() => {
-      this.CONSUME(LParen);
-      this.CONSUME(StringLiteral);
-      this.CONSUME(RParen);
-    });
+    this.OR([
+      { ALT: () => {
+        // Regular condition: identifier with optional parameters
+        this.CONSUME(Identifier);
+        this.OPTION(() => {
+          this.CONSUME(LParen);
+          this.CONSUME(StringLiteral);
+          this.CONSUME(RParen);
+        });
+      }},
+      { ALT: () => {
+        // Node name selector: just a string literal
+        this.CONSUME2(StringLiteral);
+      }}
+    ]);
   });
 
   private actionList = this.RULE("actionList", () => {
@@ -249,14 +258,25 @@ export class QueryParser {
     
     if (conditionList.children.condition) {
       conditionList.children.condition.forEach(cond => {
-        const type = cond.children.Identifier[0].image;
-        let value: string | undefined;
+        // Check if it's a string literal condition (node name selector)
+        // It will be in StringLiteral2 due to CONSUME2
+        const stringLiterals = cond.children.StringLiteral || [];
+        const hasNodeNameSelector = stringLiterals.length > 0 && !cond.children.Identifier;
         
-        if (cond.children.StringLiteral && cond.children.StringLiteral[0]) {
-          value = cond.children.StringLiteral[0].image.slice(1, -1); // Remove quotes
+        if (hasNodeNameSelector) {
+          const stringValue = stringLiterals[0].image;
+          conditions.push({ type: stringValue, value: undefined });
+        } else if (cond.children.Identifier && cond.children.Identifier[0]) {
+          // Regular identifier-based condition
+          const type = cond.children.Identifier[0].image;
+          let value: string | undefined;
+          
+          if (stringLiterals.length > 0) {
+            value = stringLiterals[0].image.slice(1, -1); // Remove quotes
+          }
+          
+          conditions.push({ type, value });
         }
-        
-        conditions.push({ type, value });
       });
     }
     
@@ -310,6 +330,10 @@ export class QueryParser {
         case 'orphan':
           return !this.hasIncomingLinks(node.id) && !this.hasOutgoingLinks(node.id);
         case 'tag':
+          // tag() matches tag nodes themselves
+          return this.isTagNode(node.id, condition.value || '');
+        case 'tagged':
+          // tagged() matches pages that have this tag
           return this.hasTag(node.id, condition.value || '', metadata);
         case 'hasIncomingLinks':
           return this.hasIncomingLinks(node.id);
@@ -325,6 +349,11 @@ export class QueryParser {
           return this.hasLinkTo(node.id, condition.value || '') || 
                  this.hasLinkFrom(node.id, condition.value || '');
         default:
+          // Check if it's a quoted string (node name selector)
+          if (condition.type.startsWith('"') && condition.type.endsWith('"')) {
+            const nodeName = condition.type.slice(1, -1);
+            return this.matchesNodeName(node, nodeName);
+          }
           return false;
       }
     });
@@ -431,6 +460,17 @@ export class QueryParser {
 
   private inFolder(nodeId: string, folder: string): boolean {
     return nodeId.startsWith(folder + '/');
+  }
+
+  private isTagNode(nodeId: string, tagName: string): boolean {
+    const normalizedTag = tagName.toLowerCase();
+    const expectedId = `tag:${normalizedTag}`;
+    return nodeId.toLowerCase() === expectedId;
+  }
+
+  private matchesNodeName(node: Node, nodeName: string): boolean {
+    // Match by label (which includes # for tags)
+    return node.label.toLowerCase() === nodeName.toLowerCase();
   }
 
   applyRules(nodes: Node[]): void {

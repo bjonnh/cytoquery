@@ -80,29 +80,100 @@ Filter and style nodes using condition-action rules:
 
 ````markdown
 ```cytoquery
-default => color(#4a4a4a)
-default => shape(sphere)
-tag("important") => color(red) 
-tag("important") => shape(cube)
-tag("important") => size(2)
-link_to("index") => color(gold)
-link_to("index") => shape(dodecahedron)
+# Basic styling
+default => color("#4a4a4a"), shape(sphere)
+
+# Style tag nodes (the tags themselves)
+tag("important") => color("gold"), size(3)
+
+# Style pages that have tags
+tagged("important") => color("red"), shape(cube)
+
+# Style specific nodes by name
+"My Important Note" => color("blue"), size(2)
+"#project" => color("purple"), shape(dodecahedron)
+
+# Style nodes with links
+link_to("index") => color("green")
+link_from("hub") => shape(cylinder)
 ```
 ````
 
+#### Query Language Syntax
+
+##### Basic Rule Structure
+```
+condition => action
+condition => action1, action2, action3
+```
+
+##### Multiple Conditions (OR logic)
+```
+condition1, condition2 => action
+tagged("important"), tagged("urgent") => color("red")
+```
+
+##### Named Parameters (Reusable Styles)
+```
+:highlight = color("yellow"), size(3), shape(cube)
+:subtle = color("#808080"), size(0.5)
+
+tagged("important") => :highlight
+orphan => :subtle
+```
+
 #### Available Conditions
 
-- `default` - Matches all nodes
-- `tag("tagname")` - Matches nodes with specific tags
+- `default` or `any` - Matches all nodes
+- `tag("tagname")` - Matches tag nodes themselves (e.g., the #tagname node)
+- `tagged("tagname")` - Matches pages/notes that have the specified tag
+- `"Node Name"` - Matches nodes with exact name (case-insensitive)
 - `link_to("text")` - Matches nodes linking to pages containing text
 - `link_from("text")` - Matches nodes linked from pages containing text
 - `link("text")` - Matches nodes with bidirectional links
+- `orphan` - Matches nodes with no incoming or outgoing links
+- `hasIncomingLinks` - Matches nodes with at least one incoming link
+- `hasOutgoingLinks` - Matches nodes with at least one outgoing link
+- `folder("path")` - Matches nodes in specified folder
 
 #### Available Actions
-- `color(value)` - Set node color (names or hex values)
-- `shape(value)` - Set node shape (sphere, cube, cylinder, cone, etc.)
-- `material(value)` - Set material type (default, glass, metal, plastic)
-- `size(value)` - Set size multiplier
+- `color(value)` - Set node color (names or hex values like "#FF0000")
+- `shape(value)` - Set node shape:
+  - Basic: `sphere`, `cube`, `cylinder`, `cone`, `torus`
+  - Complex: `tetrahedron`, `octahedron`, `dodecahedron`, `icosahedron`
+- `material(value)` or `texture(value)` - Set material type:
+  - `default`, `glass`, `metal`, `plastic`
+- `size(value)` - Set size multiplier (0.1 to 10)
+
+#### Complete Example
+
+````markdown
+```cytoquery
+# Define reusable styles
+:important = color("red"), size(3), shape(octahedron)
+:archived = color("#666666"), size(0.5), material(glass)
+:tagStyle = color("gold"), shape(cube)
+
+# Apply default styling
+default => color("#CCCCCC")
+
+# Style tag nodes
+tag("project") => :tagStyle
+tag("area") => color("purple"), size(2)
+
+# Style pages with tags
+tagged("important"), tagged("urgent") => :important
+tagged("archived") => :archived
+
+# Style specific nodes
+"Home" => color("green"), size(4), shape(dodecahedron)
+"Daily Note" => color("blue")
+
+# Style by links
+link_to("index"), link_from("hub") => color("orange"), shape(cylinder)
+orphan => color("gray"), size(0.5)
+```
+````
 
 ### Interactive Controls
 

@@ -52,3 +52,11 @@
   - Enables code reuse between Obsidian plugin and standalone demo
   - Clean separation of concerns with platform-specific implementations
   - Simplified maintenance and testing of graph functionality
+- Enhanced Query Language with Tag Support:
+  - Tag nodes are now included in the graph visualization (displayed as #tagname)
+  - `tag("tagname")` selector matches tag nodes themselves
+  - `tagged("tagname")` selector matches pages/notes that have the specified tag
+  - `"node name"` selector allows styling specific nodes by their exact name
+  - Tag nodes are connected to all pages that use them
+  - Supports both inline tags (#tag) and frontmatter tags
+  - Case-insensitive matching for tags and node names

@@ -1,29 +1,59 @@
 # Query Language Examples
 
+## Tag Support
+
+### Tag Nodes vs Tagged Pages
+The query language now distinguishes between tag nodes and pages that have tags:
+
+- `tag("tagname")` - Matches the tag node itself (displayed as #tagname in the graph)
+- `tagged("tagname")` - Matches all pages/notes that have this tag
+
+Examples:
+```
+# Make the #important tag node gold and larger
+tag("important") => color("gold"), size(3)
+
+# Make all pages tagged with #important red
+tagged("important") => color("red")
+```
+
+### Node Name Selector
+You can now style specific nodes by their exact name:
+```
+# Style a specific note
+"My Important Note" => color("blue"), size(2)
+
+# Style a specific tag node
+"#project" => color("green"), shape("cube")
+
+# Multiple specific nodes
+"Note 1", "Note 2" => color("purple")
+```
+
 ## New Features
 
 ### 1. Comma-separated conditions
 Instead of writing multiple rules:
 ```
-tag("important") => color("red")
-tag("urgent") => color("red")
+tagged("important") => color("red")
+tagged("urgent") => color("red")
 ```
 
 You can now write:
 ```
-tag("important"), tag("urgent") => color("red")
+tagged("important"), tagged("urgent") => color("red")
 ```
 
 ### 2. Comma-separated actions
 Instead of writing:
 ```
-tag("special") => color("blue")
-tag("special") => size(3)
+tagged("special") => color("blue")
+tagged("special") => size(3)
 ```
 
 You can now write:
 ```
-tag("special") => color("blue"), size(3)
+tagged("special") => color("blue"), size(3)
 ```
 
 ### 3. Named parameters
@@ -32,7 +62,7 @@ Define reusable action sets:
 :highlight = color("yellow"), size(4)
 :bluethings = color("blue"), shape("sphere")
 
-tag("important") => :highlight
+tagged("important") => :highlight
 link_to("ocean") => :bluethings
 ```
 
@@ -40,7 +70,7 @@ link_to("ocean") => :bluethings
 You can combine all features:
 ```
 :fancy = color("#FFD700"), shape("dodecahedron"), material("metal"), size(8)
-tag("treasure"), link_to("gold") => :fancy
+tagged("treasure"), link_to("gold") => :fancy
 ```
 
 ## Complete Example
@@ -53,13 +83,21 @@ tag("treasure"), link_to("gold") => :fancy
 # Apply default styling
 default => color("#CCCCCC")
 
-# Use named parameters
-tag("important") => :highlight
-tag("error"), tag("bug") => :error
+# Style tag nodes themselves
+tag("important") => color("gold"), size(4)
+tag("project") => color("purple"), shape("cube")
+
+# Style pages that have tags
+tagged("important") => :highlight
+tagged("error"), tagged("bug") => :error
+
+# Style specific nodes by name
+"Home" => color("green"), size(3)
+"#todo" => color("orange"), shape("octahedron")
 
 # Combine conditions and actions
 link_to("index"), link_from("hub") => color("green"), shape("cube")
 
 # Mix named and inline actions
-tag("archived") => :subtle, material("plastic")
+tagged("archived") => :subtle, material("plastic")
 ```

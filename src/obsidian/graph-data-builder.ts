@@ -14,6 +14,7 @@ export function buildGraphData(
     const nodeSet = new NodeSet();
     const edgeSet = new EdgeSet();
     const metadataMap = new Map<string, CachedMetadata>();
+    const tagSet = new Set<string>();
 
     // Process all files
     for (let file of files) {
@@ -27,6 +28,53 @@ export function buildGraphData(
         if (meta) {
             // Store metadata for query processing
             metadataMap.set(file.path, meta);
+
+            // Process tags from content
+            if (meta.tags) {
+                for (let tagCache of meta.tags) {
+                    const tag = tagCache.tag;
+                    const normalizedTag = tag.startsWith('#') ? tag.substring(1) : tag;
+                    const tagNodeId = `tag:${normalizedTag}`;
+                    
+                    // Add tag as node if not already added
+                    if (!tagSet.has(normalizedTag)) {
+                        tagSet.add(normalizedTag);
+                        nodeSet.add({
+                            id: tagNodeId,
+                            label: `#${normalizedTag}`
+                        });
+                    }
+                    
+                    // Create edge from file to tag
+                    edgeSet.addSourceTarget(file.path, tagNodeId);
+                }
+            }
+
+            // Process tags from frontmatter
+            if (meta.frontmatter?.tags) {
+                const frontmatterTags = Array.isArray(meta.frontmatter.tags) 
+                    ? meta.frontmatter.tags 
+                    : [meta.frontmatter.tags];
+                
+                for (let tag of frontmatterTags) {
+                    if (tag && typeof tag === 'string') {
+                        const normalizedTag = tag.startsWith('#') ? tag.substring(1) : tag;
+                        const tagNodeId = `tag:${normalizedTag}`;
+                        
+                        // Add tag as node if not already added
+                        if (!tagSet.has(normalizedTag)) {
+                            tagSet.add(normalizedTag);
+                            nodeSet.add({
+                                id: tagNodeId,
+                                label: `#${normalizedTag}`
+                            });
+                        }
+                        
+                        // Create edge from file to tag
+                        edgeSet.addSourceTarget(file.path, tagNodeId);
+                    }
+                }
+            }
 
             // Process regular content links
             if (meta.links) {
