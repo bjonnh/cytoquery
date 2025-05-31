@@ -90,6 +90,43 @@ export function createCircularMenu(
     `;
     centerInfo.appendChild(nodeLabel);
     
+    // Create tooltip for full name
+    const tooltip = document.createElement('div');
+    tooltip.className = 'circular-menu-tooltip';
+    tooltip.textContent = node.name;
+    tooltip.style.cssText = `
+        position: absolute;
+        bottom: 130px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 4px;
+        padding: 8px 12px;
+        color: white;
+        font-size: 14px;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: 1001;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    `;
+    menu.appendChild(tooltip);
+    
+    // Show tooltip on hover if name is truncated
+    centerInfo.addEventListener('mouseenter', () => {
+        if (nodeLabel.scrollWidth > nodeLabel.clientWidth) {
+            tooltip.style.opacity = '1';
+        }
+    });
+    
+    centerInfo.addEventListener('mouseleave', () => {
+        tooltip.style.opacity = '0';
+    });
+    
     menu.appendChild(centerInfo);
 
     // Define menu items

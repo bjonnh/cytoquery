@@ -23,3 +23,15 @@
   - Locked nodes display visual indicators with 4 animated gold arrows pointing inward
   - Arrows oscillate back and forth along their axis to draw attention
 - Idle rotation mode with toggle button and camera orbit functionality
+- Restriction center visual effect:
+  - When graph is restricted to show neighbors, the center node displays a transparent pulsing sphere
+  - Glass-like material with adjustable transparency and transmission
+  - Breathing scale animation and opacity pulsing
+  - Subtle color shifting between purple and pink
+  - Inner glow sphere for depth effect
+  - Effect automatically appears when restriction is applied and disappears when removed
+- FPS limiter toggle button (⚡):
+  - Toggle between performance-optimized mode (1 FPS when idle) and full 60 FPS mode
+  - When disabled, forces the graph to maintain 60 FPS continuously
+  - Visual feedback with red tint when FPS limiter is disabled
+  - Useful for smooth idle rotation or when consistent frame rate is desired

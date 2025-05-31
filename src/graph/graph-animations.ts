@@ -6,6 +6,8 @@ export interface AnimationState {
     rotationStartTime: number;
     rotationSpeed: number;
     idlePreventionInterval: number | null;
+    isFPSLimiterDisabled: boolean;
+    fpsPreventionInterval: number | null;
 }
 
 export function createAnimationLoop(
@@ -56,6 +58,35 @@ export function createAnimationLoop(
                 lockArrows[1].position.y = -distance; // Bottom arrow
                 lockArrows[2].position.x = distance;  // Right arrow
                 lockArrows[3].position.x = -distance; // Left arrow
+            }
+            
+            // Animate restriction center pulse effect
+            const pulseContainer = (nodeGroup as any).__pulseContainer;
+            const pulseSphere = (nodeGroup as any).__pulseSphere;
+            const glowSphere = (nodeGroup as any).__glowSphere;
+            
+            if (pulseContainer && pulseSphere && glowSphere) {
+                // Create a breathing/pulsing effect
+                const breathScale = 1.0 + Math.sin(time * 0.5 + nodeId.length) * 0.1;
+                pulseContainer.scale.setScalar(breathScale);
+                
+                // Animate the opacity to create color pulsing
+                const pulseOpacity = 0.2 + Math.sin(time * 1.0) * 0.15;
+                pulseSphere.material.opacity = pulseOpacity;
+                
+                // Animate the inner glow
+                const glowOpacity = 0.1 + Math.sin(time * 1.2 + Math.PI/2) * 0.1;
+                glowSphere.material.opacity = glowOpacity;
+                
+                // Subtle color shift between purple and pink
+                const colorPhase = (Math.sin(time * 0.3) + 1) * 0.5;
+                const r = 0.58 + colorPhase * 0.42; // 0.58 to 1.0
+                const g = 0.0 + colorPhase * 0.63;  // 0.0 to 0.63
+                const b = 0.83 + colorPhase * 0.17; // 0.83 to 1.0
+                pulseSphere.material.color.setRGB(r, g, b);
+                
+                // Update transmission for shimmer effect
+                pulseSphere.material.transmission = 0.7 + Math.sin(time * 0.8) * 0.2;
             }
         });
         
@@ -157,11 +188,6 @@ export function toggleIdleRotation(
             window.clearInterval(animationState.idlePreventionInterval);
             animationState.idlePreventionInterval = null;
         }
-        
-        // Allow the graph to return to normal idle detection
-        if ((Graph as any)._idleState) {
-            (Graph as any)._idleState.userInteracting = false;
-        }
     }
 }
 
@@ -176,5 +202,62 @@ export function updateNodeObjectTracking(
         animationState.nodeObjects.set(nodeId, nodeGroup);
     } else {
         animationState.nodeObjects.delete(nodeId);
+    }
+}
+
+/**
+ * Toggles the FPS limiter for the 3D force graph.
+ * 
+ * The 3d-force-graph library automatically optimizes performance by reducing frame rate to 1 FPS
+ * when no user interaction is detected (idle mode). This is detected by monitoring mouse/wheel
+ * events and node movement. After ~1 second of no activity, it switches to 1 FPS.
+ * 
+ * When the FPS limiter is disabled:
+ * - We simulate continuous mouse movement events to trick the library into thinking the user
+ *   is actively interacting with the graph
+ * - This keeps the graph rendering at full 60 FPS continuously
+ * - Useful for smooth idle rotation or when consistent frame rate is needed
+ * 
+ * When enabled (default):
+ * - Normal behavior resumes - 60 FPS during interaction, 1 FPS when idle
+ * - Better for performance and battery life
+ */
+export function toggleFPSLimiter(
+    Graph: any,
+    animationState: AnimationState,
+    disabled: boolean
+): void {
+    animationState.isFPSLimiterDisabled = disabled;
+    
+    if (disabled) {
+        // Clear any existing FPS prevention interval
+        if (animationState.fpsPreventionInterval !== null) {
+            window.clearInterval(animationState.fpsPreventionInterval);
+        }
+        
+        // Simulate continuous user interaction by dispatching mouse events
+        // This prevents the graph from entering idle mode (1 FPS)
+        animationState.fpsPreventionInterval = window.setInterval(() => {
+            if (animationState.isFPSLimiterDisabled) {
+                const renderer = Graph.renderer();
+                if (renderer && renderer.domElement) {
+                    // Dispatch a mousemove event to keep the graph active
+                    const event = new MouseEvent('mousemove', {
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: window.innerWidth / 2 + Math.random() * 2 - 1, // Slight variation to ensure event is processed
+                        clientY: window.innerHeight / 2 + Math.random() * 2 - 1
+                    });
+                    renderer.domElement.dispatchEvent(event);
+                }
+            }
+        }, 90); // Trigger every 90ms to maintain active state
+        
+    } else {
+        // Clear the interval and allow normal idle detection
+        if (animationState.fpsPreventionInterval !== null) {
+            window.clearInterval(animationState.fpsPreventionInterval);
+            animationState.fpsPreventionInterval = null;
+        }
     }
 }

@@ -127,24 +127,27 @@ export function createSettingsControls(
     // Node Styling Section
     const nodeSection = createSection('Node Styling');
     nodeSection.appendChild(createSlider('Node Size', 1, 20, 1, currentParams.nodeStyle!.size!, (val) => {
-        Graph.nodeRelSize(val);
         currentParams.nodeStyle!.size = val;
+        // Force re-render of all nodes with new size
+        Graph.nodeThreeObject(Graph.nodeThreeObject());
     }, callbacks.onParameterChange));
     nodeSection.appendChild(createSlider('Node Opacity', 0, 1, 0.05, currentParams.nodeStyle!.opacity!, (val) => {
-        Graph.nodeOpacity(val);
         currentParams.nodeStyle!.opacity = val;
+        // Force re-render of all nodes with new opacity
+        Graph.nodeThreeObject(Graph.nodeThreeObject());
     }, callbacks.onParameterChange));
     nodeSection.appendChild(createSlider('Node Resolution', 4, 32, 2, currentParams.nodeStyle!.resolution!, (val) => {
-        Graph.nodeResolution(val);
         currentParams.nodeStyle!.resolution = val;
+        // Force re-render of all nodes with new resolution
+        Graph.nodeThreeObject(Graph.nodeThreeObject());
     }, callbacks.onParameterChange));
     settingsPanel.appendChild(nodeSection);
 
     // Link Styling Section
     const linkSection = createSection('Link Styling');
     linkSection.appendChild(createSlider('Link Opacity', 0, 1, 0.05, currentParams.linkStyle!.opacity!, (val) => {
+        Graph.linkOpacity(val);
         currentParams.linkStyle!.opacity = val;
-        Graph.refresh();
     }, callbacks.onParameterChange));
     linkSection.appendChild(createSlider('Link Width', 0, 10, 0.5, currentParams.linkStyle!.width!, (val) => {
         currentParams.linkStyle!.width = val;
@@ -243,10 +246,7 @@ export function createSettingsControls(
         Graph.d3AlphaMin(0);
         Graph.dagMode(null as any);
         Graph.dagLevelDistance(50);
-        Graph.nodeRelSize(4);
-        Graph.nodeOpacity(0.75);
-        Graph.nodeResolution(8);
-        Graph.linkWidth(1);
+        Graph.linkOpacity(0.2);
         Graph.linkCurvature(0);
         Graph.linkDirectionalParticles(0);
         Graph.linkDirectionalParticleSpeed(0.01);
@@ -257,6 +257,31 @@ export function createSettingsControls(
         bloomPass.strength = 4.5;
         bloomPass.radius = 1;
         bloomPass.threshold = 0;
+        // Reset current params
+        currentParams.force!.alphaDecay = 0.0228;
+        currentParams.force!.velocityDecay = 0.4;
+        currentParams.force!.alphaMin = 0;
+        currentParams.dag!.mode = '';
+        currentParams.dag!.levelDistance = 50;
+        currentParams.nodeStyle!.size = 4;
+        currentParams.nodeStyle!.opacity = 0.75;
+        currentParams.nodeStyle!.resolution = 8;
+        currentParams.linkStyle!.opacity = 0.2;
+        currentParams.linkStyle!.width = 1;
+        currentParams.linkStyle!.curvature = 0;
+        currentParams.linkStyle!.particles = 0;
+        currentParams.linkStyle!.particleSpeed = 0.01;
+        currentParams.interaction!.enableDrag = true;
+        currentParams.performance!.warmupTicks = 0;
+        currentParams.performance!.cooldownTicks = Infinity;
+        currentParams.performance!.cooldownTime = 10000;
+        currentParams.bloom!.strength = 4.5;
+        currentParams.bloom!.radius = 1;
+        currentParams.bloom!.threshold = 0;
+        
+        // Force re-render of all nodes after reset
+        Graph.nodeThreeObject(Graph.nodeThreeObject());
+        
         callbacks.onReset();
     };
     resetSection.appendChild(resetBtn);

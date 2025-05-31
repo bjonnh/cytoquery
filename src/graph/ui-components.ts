@@ -8,6 +8,7 @@ export interface UICallbacks {
     onClearPath: () => void;
     onSaveParameters: () => void;
     onToggleIdleRotation: () => void;
+    onToggleFPSLimiter: () => void;
     onSettingsToggle: () => void;
 }
 
@@ -20,6 +21,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
         clearPath: HTMLButtonElement;
         save: HTMLButtonElement;
         idleRotation: HTMLButtonElement;
+        fpsLimiter: HTMLButtonElement;
         menu: HTMLButtonElement;
     };
     containers: {
@@ -221,6 +223,31 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     idleRotationButton.onclick = callbacks.onToggleIdleRotation;
     container.appendChild(idleRotationButton);
 
+    // Create FPS limiter toggle button
+    const fpsLimiterButton = document.createElement('button');
+    fpsLimiterButton.innerHTML = '⚡';
+    fpsLimiterButton.title = 'Toggle FPS Limiter (60 FPS when disabled)';
+    fpsLimiterButton.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 306px;
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+    fpsLimiterButton.onclick = callbacks.onToggleFPSLimiter;
+    container.appendChild(fpsLimiterButton);
+
     // Create hamburger menu button
     const menuButton = document.createElement('button');
     menuButton.innerHTML = '☰';
@@ -279,6 +306,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
             clearPath: clearPathButton,
             save: saveButton,
             idleRotation: idleRotationButton,
+            fpsLimiter: fpsLimiterButton,
             menu: menuButton
         },
         containers: {

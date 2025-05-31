@@ -26,7 +26,8 @@ export function createGraph(
     parameters: GraphParameters,
     currentParams: GraphParameters,
     uiState: GraphUIState,
-    callbacks: GraphCallbacks
+    callbacks: GraphCallbacks,
+    menuState?: any
 ): any {
     // Initialize the 3D force graph with default or loaded parameters
     const Graph = new ForceGraph3D(container)
@@ -78,10 +79,6 @@ export function createGraph(
         // Apply DAG parameters
         .dagMode(parameters.dag?.mode as any || null)
         .dagLevelDistance(parameters.dag?.levelDistance || 50)
-        // Apply node style parameters
-        .nodeRelSize(parameters.nodeStyle?.size || 4)
-        .nodeOpacity(parameters.nodeStyle?.opacity || 0.75)
-        .nodeResolution(parameters.nodeStyle?.resolution || 8)
         // Apply link style parameters
         // Note: linkWidth and linkOpacity are handled by functions above when path is active
         .linkCurvature(parameters.linkStyle?.curvature || 0)
@@ -94,7 +91,7 @@ export function createGraph(
         .width(container.clientWidth)
         .height(container.clientHeight)
         .graphData(graphData)
-        .nodeThreeObject((node: any) => createNodeObject(node, uiState))
+        .nodeThreeObject((node: any) => createNodeObject(node, uiState, menuState, currentParams))
         .onNodeClick(callbacks.onNodeClick);
 
     Graph.enableNavigationControls();
@@ -102,24 +99,26 @@ export function createGraph(
     return Graph;
 }
 
-export function createNodeObject(node: any, uiState: GraphUIState): THREE.Group {
+export function createNodeObject(node: any, uiState: GraphUIState, menuState?: any, parameters?: GraphParameters): THREE.Group {
     // Create geometry based on shape
     let geometry;
     const baseSize = Math.cbrt(node.val) * 0.5; // Base scale based on node value
-    const size = baseSize * (node.size || 1); // Apply custom size multiplier
+    const globalSizeMultiplier = (parameters?.nodeStyle?.size || 4) / 4; // Normalize around default size of 4
+    const size = baseSize * (node.size || 1) * globalSizeMultiplier; // Apply both custom and global size
+    const resolution = parameters?.nodeStyle?.resolution || 8;
     
     switch (node.shape) {
         case 'cube':
             geometry = new THREE.BoxGeometry(size, size, size);
             break;
         case 'cylinder':
-            geometry = new THREE.CylinderGeometry(size/2, size/2, size, 16);
+            geometry = new THREE.CylinderGeometry(size/2, size/2, size, resolution * 2);
             break;
         case 'cone':
-            geometry = new THREE.ConeGeometry(size/2, size, 16);
+            geometry = new THREE.ConeGeometry(size/2, size, resolution * 2);
             break;
         case 'torus':
-            geometry = new THREE.TorusGeometry(size/2, size/6, 8, 16);
+            geometry = new THREE.TorusGeometry(size/2, size/6, resolution, resolution * 2);
             break;
         case 'tetrahedron':
             geometry = new THREE.TetrahedronGeometry(size);
@@ -135,13 +134,14 @@ export function createNodeObject(node: any, uiState: GraphUIState): THREE.Group 
             break;
         case 'sphere':
         default:
-            geometry = new THREE.SphereGeometry(size, 16, 16);
+            geometry = new THREE.SphereGeometry(size, resolution * 2, resolution * 2);
             break;
     }
     
     // Create material based on material type
     let material;
     const color = new THREE.Color(node.color);
+    const opacity = parameters?.nodeStyle?.opacity || 0.75;
     
     switch (node.material) {
         case 'glass':
@@ -151,7 +151,7 @@ export function createNodeObject(node: any, uiState: GraphUIState): THREE.Group 
                 roughness: 0,
                 transmission: 0.9,
                 transparent: true,
-                opacity: 0.6,
+                opacity: opacity * 0.8, // Glass is slightly more transparent
                 reflectivity: 0.9,
                 ior: 1.5,
                 clearcoat: 1,
@@ -163,7 +163,9 @@ export function createNodeObject(node: any, uiState: GraphUIState): THREE.Group 
                 color: color,
                 metalness: 0.9,
                 roughness: 0.2,
-                envMapIntensity: 1
+                envMapIntensity: 1,
+                transparent: opacity < 1,
+                opacity: opacity
             });
             break;
         case 'plastic':
@@ -171,14 +173,17 @@ export function createNodeObject(node: any, uiState: GraphUIState): THREE.Group 
                 color: color,
                 shininess: 100,
                 specular: new THREE.Color(0x222222),
-                reflectivity: 0.3
+                reflectivity: 0.3,
+                transparent: opacity < 1,
+                opacity: opacity
             });
             break;
         case 'default':
         default:
             material = new THREE.MeshLambertMaterial({
                 color: color,
-                transparent: false
+                transparent: opacity < 1,
+                opacity: opacity
             });
             break;
     }
@@ -190,7 +195,7 @@ export function createNodeObject(node: any, uiState: GraphUIState): THREE.Group 
         const glowMaterial = new THREE.MeshBasicMaterial({
             color: color,
             transparent: true,
-            opacity: 0.3
+            opacity: opacity * 0.4 // Scale glow opacity with node opacity
         });
         const glowMesh = new THREE.Mesh(geometry.clone(), glowMaterial);
         glowMesh.scale.multiplyScalar(1.2);
@@ -256,6 +261,53 @@ export function createNodeObject(node: any, uiState: GraphUIState): THREE.Group 
         (nodeGroup as any).__haloContainer = haloContainer;
         (nodeGroup as any).__haloMesh1 = haloMesh1;
         (nodeGroup as any).__haloMesh2 = haloMesh2;
+    }
+    
+    // Add special effect for restriction center node
+    const isRestrictionCenter = menuState?.currentRestriction?.nodeId === node.id;
+    if (isRestrictionCenter) {
+        // Create a transparent sphere that pulses with color
+        const pulseGeometry = new THREE.SphereGeometry(size * 3, 32, 32);
+        
+        // Use a material that supports transparency and emissive properties
+        const pulseMaterial = new THREE.MeshPhysicalMaterial({
+            color: new THREE.Color(0x9400d3), // Purple base color
+            transparent: true,
+            opacity: 0.3,
+            metalness: 0,
+            roughness: 0,
+            transmission: 0.8, // Makes it glass-like
+            clearcoat: 1,
+            clearcoatRoughness: 0,
+            ior: 1.2, // Index of refraction for glass effect
+            reflectivity: 0.5,
+            side: THREE.DoubleSide
+        });
+        
+        const pulseSphere = new THREE.Mesh(pulseGeometry, pulseMaterial);
+        
+        // Add a subtle inner glow sphere
+        const glowGeometry = new THREE.SphereGeometry(size * 2.5, 32, 32);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0xda70d6), // Lighter purple
+            transparent: true,
+            opacity: 0.2,
+            side: THREE.BackSide // Render inside of sphere
+        });
+        const glowSphere = new THREE.Mesh(glowGeometry, glowMaterial);
+        
+        // Container for both spheres
+        const pulseContainer = new THREE.Group();
+        pulseContainer.add(pulseSphere);
+        pulseContainer.add(glowSphere);
+        
+        nodeGroup.add(pulseContainer);
+        
+        // Store references for animation
+        (nodeGroup as any).__pulseContainer = pulseContainer;
+        (nodeGroup as any).__pulseSphere = pulseSphere;
+        (nodeGroup as any).__glowSphere = glowSphere;
+        (nodeGroup as any).__isRestrictionCenter = true;
     }
     
     // Add lock indicator for locked nodes

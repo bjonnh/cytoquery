@@ -14,6 +14,7 @@ import {
 import {
     createAnimationLoop,
     toggleIdleRotation,
+    toggleFPSLimiter,
     updateNodeObjectTracking,
     AnimationState
 } from './graph-animations';
@@ -251,10 +252,14 @@ export function init3DForceGraph(
                     const filteredData = restrictToNode(nodeId, depth, Graph.graphData());
                     Graph.graphData(filteredData);
                     menuState.currentRestriction = { nodeId, depth };
+                    // Refresh node objects to show restriction center effect
+                    Graph.nodeThreeObject(Graph.nodeThreeObject());
                 },
                 onUnrestrict: () => {
                     Graph.graphData(graphData);
                     menuState.currentRestriction = null;
+                    // Refresh node objects to remove restriction center effect
+                    Graph.nodeThreeObject(Graph.nodeThreeObject());
                 },
                 onCenterOnNode: (node: any, distance: number) => {
                     // First, ensure we have the current node position
@@ -346,7 +351,8 @@ export function init3DForceGraph(
         parameters,
         currentParams,
         uiState,
-        graphCallbacks
+        graphCallbacks,
+        menuState
     );
 
     // Add bloom pass
@@ -361,7 +367,9 @@ export function init3DForceGraph(
         isIdleRotationActive: false,
         rotationStartTime: 0,
         rotationSpeed: 0.3,
-        idlePreventionInterval: null
+        idlePreventionInterval: null,
+        isFPSLimiterDisabled: false,
+        fpsPreventionInterval: null
     };
 
     // Update node object tracking in the graph renderer
@@ -373,7 +381,8 @@ export function init3DForceGraph(
                        uiState.targetNode === node.id ||
                        uiState.currentPath.includes(node.id);
         const hasLockIndicator = uiState.lockedNodes.has(String(node.id));
-        updateNodeObjectTracking(nodeGroup, node.id, animationState, hasHalo, hasLockIndicator);
+        const isRestrictionCenter = (nodeGroup as any).__isRestrictionCenter;
+        updateNodeObjectTracking(nodeGroup, node.id, animationState, hasHalo || isRestrictionCenter, hasLockIndicator);
         return nodeGroup;
     });
 
@@ -469,6 +478,17 @@ export function init3DForceGraph(
                 btn.title = 'Enable Idle Rotation Mode';
             }
         },
+        onToggleFPSLimiter: () => {
+            toggleFPSLimiter(Graph, animationState, !animationState.isFPSLimiterDisabled);
+            const btn = uiElements.buttons.fpsLimiter;
+            if (animationState.isFPSLimiterDisabled) {
+                btn.style.background = 'rgba(255, 100, 100, 0.5)';
+                btn.title = 'Enable FPS Limiter (currently 60 FPS)';
+            } else {
+                btn.style.background = 'rgba(0, 0, 0, 0.7)';
+                btn.title = 'Disable FPS Limiter (currently limited)';
+            }
+        },
         onSettingsToggle: () => {
             isPanelOpen = !isPanelOpen;
             uiElements.containers.settingsPanel.style.right = isPanelOpen ? '0' : '-320px';
@@ -487,9 +507,21 @@ export function init3DForceGraph(
         };
     };
 
+    // Update FPS limiter button hover effects
+    const setupFPSLimiterButton = () => {
+        const btn = uiElements.buttons.fpsLimiter;
+        btn.onmouseover = () => {
+            btn.style.background = animationState.isFPSLimiterDisabled ? 'rgba(255, 100, 100, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+        };
+        btn.onmouseout = () => {
+            btn.style.background = animationState.isFPSLimiterDisabled ? 'rgba(255, 100, 100, 0.5)' : 'rgba(0, 0, 0, 0.7)';
+        };
+    };
+
     // Create UI controls
     const uiElements = createUIControls(container, uiCallbacks);
     setupIdleRotationButton();
+    setupFPSLimiterButton();
 
     // Update unlock all button visibility based on initial locked nodes
     if (parameters.lockedNodes && parameters.lockedNodes.length > 0) {
