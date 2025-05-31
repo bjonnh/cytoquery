@@ -1,6 +1,6 @@
 # Obsidian CytoQuery
 
-A 3D graph visualization plugin for Obsidian that transforms your vault into an interactive graph.
+A 3D graph visualization plugin for Obsidian that visualizes your vault as an interactive graph.
 It is aimed at exploring the connections between your notes in 3D with stuff like path finding, node locking, 
 and some fancy dynamic visual effects (because that was fun to do).
 
