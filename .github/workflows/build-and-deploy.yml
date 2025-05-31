@@ -1,0 +1,540 @@
+name: Build, Test, and Deploy
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run tests
+      run: npm test
+    
+    - name: Build plugin
+      run: npm run build
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: obsidian-cytoquery-build
+        path: |
+          main.js
+          manifest.json
+          styles.css
+        if-no-files-found: error
+    
+    - name: Prepare demo files
+      run: |
+        mkdir -p demo-dist
+        cp main.js demo-dist/
+        cp styles.css demo-dist/
+        # Create demo HTML if it doesn't exist
+        if [ ! -f demo-dist/index.html ]; then
+          cat > demo-dist/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obsidian CytoQuery - 3D Graph Visualization Demo</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        
+        #demo-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #graph-container {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .demo-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(30, 30, 30, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .demo-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .demo-header p {
+            margin: 0 0 15px 0;
+            color: #a0a0a0;
+            font-size: 14px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        
+        .demo-button {
+            background: #3b3b3b;
+            border: 1px solid #4b4b4b;
+            color: #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .demo-button:hover {
+            background: #4b4b4b;
+            border-color: #6366f1;
+            transform: translateY(-1px);
+        }
+        
+        .demo-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(30, 30, 30, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 300px;
+            font-size: 13px;
+            line-height: 1.5;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .demo-info h3 {
+            margin: 0 0 10px 0;
+            color: #6366f1;
+            font-size: 16px;
+        }
+        
+        .demo-info ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .demo-info li {
+            margin-bottom: 5px;
+        }
+        
+        .demo-info code {
+            background: #2b2b2b;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(99, 102, 241, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #6366f1;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="demo-container">
+        <div class="demo-header">
+            <h1>Obsidian CytoQuery - 3D Graph Visualization</h1>
+            <p>Interactive 3D visualization of note relationships with advanced navigation features</p>
+            <div class="demo-controls">
+                <button class="demo-button" onclick="loadSampleGraph()">Load Sample Graph</button>
+                <button class="demo-button" onclick="randomizePositions()">Randomize Positions</button>
+                <button class="demo-button" onclick="resetCamera()">Reset Camera</button>
+                <button class="demo-button" onclick="toggleStats()">Toggle Stats</button>
+                <button class="demo-button" onclick="showHelp()">Help</button>
+            </div>
+            <div style="color: #888; font-size: 12px;">
+                <span id="node-count">Nodes: 0</span> | 
+                <span id="edge-count">Edges: 0</span> | 
+                <span id="fps-display">FPS: 0</span>
+            </div>
+        </div>
+        
+        <div id="graph-container">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>Initializing 3D Graph...</p>
+            </div>
+        </div>
+        
+        <div class="demo-info">
+            <h3>🎮 Controls</h3>
+            <ul>
+                <li><strong>Left Click</strong>: Select node & show menu</li>
+                <li><strong>Right Click + Drag</strong>: Rotate view</li>
+                <li><strong>Scroll</strong>: Zoom in/out</li>
+                <li><strong>Middle Click + Drag</strong>: Pan view</li>
+            </ul>
+            <h3>✨ Features</h3>
+            <ul>
+                <li>Click nodes to see circular menu</li>
+                <li>Lock nodes in place with 🔒</li>
+                <li>Set pathfinding endpoints 🎯🏁</li>
+                <li>Restrict view to neighbors 🔍</li>
+                <li>Enable idle rotation 🔄</li>
+                <li>Toggle FPS limiter ⚡</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js"></script>
+    <script>
+        // Demo data and initialization
+        let Graph;
+        let graphData = { nodes: [], links: [] };
+        let stats;
+        let animationFrameId;
+        
+        // Initialize the graph
+        function initializeGraph() {
+            const container = document.getElementById('graph-container');
+            container.innerHTML = ''; // Clear loading message
+            
+            Graph = ForceGraph3D()(container)
+                .backgroundColor('#1e1e1e')
+                .nodeLabel('title')
+                .nodeColor(node => node.selected ? '#00ff00' : '#6366f1')
+                .nodeOpacity(0.9)
+                .linkColor(() => 'rgba(255, 255, 255, 0.2)')
+                .linkOpacity(0.6)
+                .linkWidth(1)
+                .nodeThreeObject(node => {
+                    const group = new THREE.Group();
+                    
+                    // Main sphere
+                    const geometry = new THREE.SphereGeometry(5);
+                    const material = new THREE.MeshPhongMaterial({
+                        color: node.selected ? 0x00ff00 : 0x6366f1,
+                        emissive: node.selected ? 0x00ff00 : 0x6366f1,
+                        emissiveIntensity: 0.3,
+                        shininess: 100
+                    });
+                    const sphere = new THREE.Mesh(geometry, material);
+                    group.add(sphere);
+                    
+                    // Add halo for selected nodes
+                    if (node.selected) {
+                        const haloGeometry = new THREE.SphereGeometry(8, 32, 32);
+                        const haloMaterial = new THREE.MeshBasicMaterial({
+                            color: 0x00ff00,
+                            transparent: true,
+                            opacity: 0.3,
+                            side: THREE.BackSide
+                        });
+                        const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+                        group.add(halo);
+                    }
+                    
+                    // Add lock indicator
+                    if (node.locked) {
+                        for (let i = 0; i < 4; i++) {
+                            const arrow = createArrow(0xffd700);
+                            const angle = (i * Math.PI) / 2;
+                            arrow.position.set(Math.cos(angle) * 10, 0, Math.sin(angle) * 10);
+                            arrow.lookAt(0, 0, 0);
+                            group.add(arrow);
+                        }
+                    }
+                    
+                    return group;
+                })
+                .onNodeClick(handleNodeClick);
+            
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            Graph.scene().add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(0, 10, 5);
+            Graph.scene().add(directionalLight);
+            
+            loadSampleGraph();
+            updateStats();
+        }
+        
+        function createArrow(color) {
+            const geometry = new THREE.ConeGeometry(3, 8, 4);
+            const material = new THREE.MeshPhongMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.5
+            });
+            return new THREE.Mesh(geometry, material);
+        }
+        
+        function handleNodeClick(node) {
+            // Simple selection toggle for demo
+            node.selected = !node.selected;
+            Graph.nodeColor(Graph.nodeColor()); // Trigger update
+            console.log('Node clicked:', node.title);
+        }
+        
+        function loadSampleGraph() {
+            // Generate sample data
+            const nodeCount = 50;
+            const nodes = [];
+            const links = [];
+            
+            // Create nodes
+            for (let i = 0; i < nodeCount; i++) {
+                nodes.push({
+                    id: `node-${i}`,
+                    title: `Note ${i}`,
+                    x: (Math.random() - 0.5) * 300,
+                    y: (Math.random() - 0.5) * 300,
+                    z: (Math.random() - 0.5) * 300,
+                    selected: false,
+                    locked: false
+                });
+            }
+            
+            // Create links (random connections)
+            for (let i = 0; i < nodeCount * 1.5; i++) {
+                const source = Math.floor(Math.random() * nodeCount);
+                const target = Math.floor(Math.random() * nodeCount);
+                if (source !== target) {
+                    links.push({
+                        source: `node-${source}`,
+                        target: `node-${target}`
+                    });
+                }
+            }
+            
+            graphData = { nodes, links };
+            Graph.graphData(graphData);
+            updateStats();
+        }
+        
+        function randomizePositions() {
+            graphData.nodes.forEach(node => {
+                node.x = (Math.random() - 0.5) * 300;
+                node.y = (Math.random() - 0.5) * 300;
+                node.z = (Math.random() - 0.5) * 300;
+            });
+            Graph.graphData(graphData);
+        }
+        
+        function resetCamera() {
+            Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+        }
+        
+        function toggleStats() {
+            if (!stats) {
+                stats = document.createElement('div');
+                stats.style.position = 'absolute';
+                stats.style.top = '120px';
+                stats.style.left = '20px';
+                stats.style.background = 'rgba(30, 30, 30, 0.9)';
+                stats.style.padding = '10px';
+                stats.style.borderRadius = '6px';
+                stats.style.fontSize = '12px';
+                stats.style.fontFamily = 'monospace';
+                document.getElementById('demo-container').appendChild(stats);
+                updateDetailedStats();
+            } else {
+                stats.remove();
+                stats = null;
+            }
+        }
+        
+        function updateStats() {
+            document.getElementById('node-count').textContent = `Nodes: ${graphData.nodes.length}`;
+            document.getElementById('edge-count').textContent = `Edges: ${graphData.links.length}`;
+        }
+        
+        function updateDetailedStats() {
+            if (stats && Graph) {
+                const camera = Graph.camera();
+                stats.innerHTML = `
+                    <strong>Camera Position:</strong><br>
+                    X: ${camera.position.x.toFixed(2)}<br>
+                    Y: ${camera.position.y.toFixed(2)}<br>
+                    Z: ${camera.position.z.toFixed(2)}<br>
+                    <br>
+                    <strong>Graph Stats:</strong><br>
+                    Nodes: ${graphData.nodes.length}<br>
+                    Links: ${graphData.links.length}<br>
+                    Selected: ${graphData.nodes.filter(n => n.selected).length}<br>
+                    Locked: ${graphData.nodes.filter(n => n.locked).length}
+                `;
+            }
+            if (stats) {
+                requestAnimationFrame(updateDetailedStats);
+            }
+        }
+        
+        function showHelp() {
+            alert(`Obsidian CytoQuery - 3D Graph Visualization
+
+This demo showcases the 3D graph visualization capabilities of the Obsidian CytoQuery plugin.
+
+Key Features:
+• Interactive 3D force-directed graph
+• Node selection with visual feedback
+• Circular context menu for node actions
+• Path finding between nodes
+• Neighbor restriction view
+• Node locking functionality
+• Idle rotation mode
+• FPS limiter toggle
+
+Note: This is a demo version. The full plugin integrates with Obsidian to visualize your actual notes and their relationships.
+
+For more information, visit the GitHub repository.`);
+        }
+        
+        // FPS counter
+        let lastTime = performance.now();
+        let frameCount = 0;
+        function updateFPS() {
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime >= lastTime + 1000) {
+                const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                document.getElementById('fps-display').textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+            requestAnimationFrame(updateFPS);
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initializeGraph();
+            updateFPS();
+        });
+    </script>
+</body>
+</html>
+EOF
+        fi
+    
+    - name: Upload demo artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: demo-files
+        path: demo-dist/
+        if-no-files-found: error
+  
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: obsidian-cytoquery-build
+        path: ./release
+    
+    - name: Create release bundle
+      run: |
+        cd release
+        zip -r ../obsidian-cytoquery.zip main.js manifest.json styles.css
+        cd ..
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          obsidian-cytoquery.zip
+          release/main.js
+          release/manifest.json
+          release/styles.css
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+  
+  deploy-demo:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download demo artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: demo-files
+        path: ./demo-dist
+    
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+    
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: './demo-dist'
+    
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

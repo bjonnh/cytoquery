@@ -35,3 +35,15 @@
   - When disabled, forces the graph to maintain 60 FPS continuously
   - Visual feedback with red tint when FPS limiter is disabled
   - Useful for smooth idle rotation or when consistent frame rate is desired
+- GitHub CI/CD Pipeline:
+  - Automated builds and tests on push and pull requests
+  - Creates release artifacts (main.js, manifest.json, styles.css) when tags are pushed
+  - Generates bundled zip file for easy plugin installation
+  - Automatic GitHub releases with generated release notes
+- Interactive Demo Page:
+  - Standalone demo showcasing plugin features without Obsidian
+  - Automatically deployed to GitHub Pages on main branch updates
+  - Sample graph with 50 nodes and randomized connections
+  - Interactive controls for graph manipulation
+  - Real-time FPS counter and statistics display
+  - Demonstrates node selection, camera controls, and visual effects
