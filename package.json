@@ -17,24 +17,24 @@
 	"author": "",
 	"license": "MIT",
 	"devDependencies": {
-		"@types/node": "^20.0.0",
+		"@types/node": "^22.15.29",
 		"@types/three": "^0.176.0",
-		"@typescript-eslint/eslint-plugin": "5.29.0",
-		"@typescript-eslint/parser": "5.29.0",
+		"@typescript-eslint/eslint-plugin": "^8.33.0",
+		"@typescript-eslint/parser": "^8.33.0",
 		"@vitest/ui": "^3.1.4",
-		"builtin-modules": "3.3.0",
+		"builtin-modules": "^5.0.0",
 		"chevrotain": "^11.0.3",
-		"esbuild": "^0.25.3",
+		"esbuild": "^0.25.5",
 		"happy-dom": "^17.5.6",
 		"obsidian": "latest",
-		"tslib": "2.4.0",
-		"typescript": "^5.0.0",
+		"tslib": "^2.8.1",
+		"typescript": "^5.8.3",
 		"vitest": "^3.1.4"
 	},
 	"dependencies": {
 		"accessor-fn": "^1.5.3",
 		"kapsule": "^1.16.3",
-		"three": "^0.174.0",
+		"three": "^0.177.0",
 		"three-forcegraph": "^1.42.13",
 		"three-render-objects": "^1.40.2"
 	}
