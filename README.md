@@ -1,206 +1,166 @@
-# Obsidian CytoQuery Plugin
+# Obsidian CytoQuery
 
-This is a graph visualization plugin for Obsidian (https://obsidian.md).
+A 3D graph visualization plugin for Obsidian that transforms your vault into an interactive graph.
+It is aimed at exploring the connections between your notes in 3D with stuff like path finding, node locking, 
+and some fancy dynamic visual effects (because that was fun to do).
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+### Demo
 
-This plugin provides graph visualization capabilities for your Obsidian vault:
-- 2D graph visualization using Cytoscape.js
-- 3D graph visualization using 3d-force-graph
-- Visualizes connections between your notes
-- Automatically builds the graph from your vault's files and links
+Try the interactive demo at: **https://bjonnh.github.io/cytoquery/**
 
-## First time developing plugins?
+It shows most of the plugin features with a random graph of 500 interconnected nodes.
 
-Quick starting guide for new plugin devs:
+### Story 
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+This is a totally vibe-coded project with https://www.anthropic.com/claude-code. Code quality is not awesome, but it 
+allowed me to iterate really quickly. And it worked much better than I expected (using Opus if you wondered).
 
-## Releasing new releases
+This is a toy project, it is not meant for production, I am not sure if I will make it a released plugin yet, but you
+can install it with BRAT and play with it.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+It is called CytoQuery because this started as a cytoscape.js project. I will more than likely reintegrate it at some
+point, especially for the whole graph management part, path finding etc.
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+## Features
 
-## Adding your plugin to the community plugin list
+- **3D Graph Visualization**: Navigate your graph in three dimensions using force-directed layouts
+- **Node Interactions**: Click nodes to access circular menus with options to open notes, lock positions, set path endpoints, and more
+- **Path Finding**: Find and visualize one of the shortest paths between any two notes with directional or undirectional routing
+- **Visual Effects**: Bloom post-processing, node halos, lock indicators, and restriction center effects
+- **Parameter Controls**: Adjust force simulation, visual styling, and performance settings with live preview
+- **Query Language**: Filter and style nodes using condition-action syntax
+- **Node Locking**: Pin nodes in place and save their positions
+- **Graph Restrictions**: Show only neighbors within a specified depth
+- **Performance Features**: FPS limiting and idle rotation modes
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
 
-## How to use
+## Installation
 
-### Installation
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+### Option 1: BRAT (Recommended)
 
-### Using the plugin
-Once the plugin is installed and enabled, you can use it in your Markdown notes:
+1. Install the [BRAT plugin](https://github.com/TfTHacker/obsidian42-brat) from the Obsidian Community Plugins
+2. Open BRAT settings and click "Add Beta Plugin"
+3. Enter this repository URL: `bjonnh/obsidian-cytoquery`
+4. Click "Add Plugin" and enable CytoQuery in your plugin settings
 
-#### 2D Graph Visualization
-To create a 2D graph visualization using Cytoscape.js, add a code block with the `cytoquery` language:
+### Option 2: Manual Installation
 
+1. Download the latest release from the [releases page](https://github.com/bjonnh/obsidian-cytoquery/releases)
+2. Extract the files to your vault's `.obsidian/plugins/cytoquery/` directory
+3. Enable the plugin in Obsidian's settings
+
+## Usage
+
+### Basic 3D Graph
+
+Create a 3D graph of your vault by adding a code block:
+
+```markdown
 ```cytoquery
 ```
-
-This will display a 2D graph of your vault's files and their connections.
-
-#### 3D Graph Visualization
-To create a 3D graph visualization using 3d-force-graph, add a code block with the `3d-force-graph` language:
-
-```3d-force-graph
 ```
 
-This will display an interactive 3D graph of your vault's files and their connections. You can:
-- Rotate the graph by dragging
-- Zoom in/out using the mouse wheel
-- Click on nodes to open a popup with options:
-  - Open the note in a new tab (creates new notes for non-existent links)
-  - Restrict the graph to show only the node and its neighbors within a specified depth
-  - Remove all restrictions to show the full graph again
+### Advanced Configuration
 
-#### Query Language
-Both visualization types support a simple query language that allows you to customize the appearance of nodes based on conditions. You can add queries inside the code blocks:
+Customize the graph appearance and behavior with parameters:
 
+```markdown
 ```cytoquery
-link_to("daily") => color(red)
-tag("note") => color(blue)
+nodeStyle.size: 6
+nodeStyle.opacity: 0.8
+linkStyle.opacity: 0.3
+bloom.strength: 5.0
+force.alphaDecay: 0.02
+```
 ```
 
-The query language syntax follows this pattern:
-```
-condition(value) => action(value)
-```
+### Query Language
 
-Currently supported conditions:
-- `default` - Matches all nodes (use this to set default properties for all nodes)
-- `link_to("text")` - Matches nodes that link to pages containing the specified text
-- `link_from("text")` - Matches nodes that are linked from pages containing the specified text
-- `link("text")` - Matches nodes that either link to or are linked from pages containing the specified text
-- `tag("tagname")` - Matches nodes that have the specified tag
+Filter and style nodes using condition-action rules:
 
-Currently supported actions:
-- `color(value)` - Sets the color of matching nodes (use color names like red, blue, green, or hex values like #FF0000)
-- `shape(value)` - Sets the shape of matching nodes (3D graph only)
-- `material(value)` or `texture(value)` - Sets the material/texture of matching nodes (3D graph only)
-- `size(value)` - Sets the size multiplier for matching nodes (3D graph only, e.g., 0.5 for half size, 2 for double size)
-
-Available shapes (3D graph only):
-- `sphere` (default)
-- `cube`
-- `cylinder`
-- `cone`
-- `torus`
-- `tetrahedron`
-- `octahedron`
-- `dodecahedron`
-- `icosahedron`
-
-Available materials/textures (3D graph only):
-- `default` - Basic Lambert material
-- `glass` - Transparent with refraction
-- `metal` - Metallic with reflections
-- `plastic` - Shiny plastic appearance
-
-Examples:
-
+```markdown
 ```cytoquery
-link_to("project") => color(green)
-tag("important") => color(red)
-link_from("index") => color("#FF00FF")
-```
-
-```3d-force-graph
+default => color(#4a4a4a)
 default => shape(sphere)
-default => material(plastic)
-default => color("#4a4a4a")
-default => size(1)
-link_to("daily") => color(orange)
-tag("todo") => color(purple)
+tag("important") => color(red) 
 tag("important") => shape(cube)
-tag("important") => material(metal)
 tag("important") => size(2)
+link_to("index") => color(gold)
 link_to("index") => shape(dodecahedron)
-link_to("index") => texture(glass)
-link_to("index") => size(1.5)
-tag("archived") => shape(cone)
-tag("archived") => material(glass)
-tag("archived") => color("#808080")
-tag("archived") => size(0.5)
-link("daily") => shape(cylinder)
-link("daily") => material(plastic)
-tag("personal") => size(0.7)
-tag("core") => size(3)
+```
 ```
 
-Each line is a separate rule, and multiple rules can be applied to the same visualization. For nodes that match multiple rules, all matching actions will be applied. The `default` condition is useful for setting baseline properties for all nodes, which can then be overridden by more specific conditions.
+#### Available Conditions
+- `default` - Matches all nodes
+- `tag("tagname")` - Matches nodes with specific tags
+- `link_to("text")` - Matches nodes linking to pages containing text
+- `link_from("text")` - Matches nodes linked from pages containing text
+- `link("text")` - Matches nodes with bidirectional links
 
-#### Public Mode
-The plugin includes a "Public Mode" feature that allows you to hide node names in your graph visualizations. This is useful when you want to share screenshots or videos of your graph without revealing the actual names of your notes.
+#### Available Actions
+- `color(value)` - Set node color (names or hex values)
+- `shape(value)` - Set node shape (sphere, cube, cylinder, cone, etc.)
+- `material(value)` - Set material type (default, glass, metal, plastic)
+- `size(value)` - Set size multiplier
 
-When Public Mode is enabled, node labels are replaced with their internal IDs, preserving the structure of your graph while anonymizing the content.
+### Interactive Controls
 
-To enable Public Mode:
-1. Go to Settings > CytoQuery
-2. Toggle on the "Public Mode" option
+- **Left Click**: Select nodes and open circular menus
+- **Right Drag**: Rotate the camera
+- **Scroll**: Zoom in/out  
+- **Middle Drag**: Pan the view
+- **Circular Menu Options**:
+  - Open note in new tab
+  - Lock/unlock node position
+  - Set as path start/end point
+  - Center camera on node
+  - Restrict graph to neighbors
+  - Remove restrictions
 
-This setting affects both 2D and 3D graph visualizations. You can toggle it on when sharing your graphs publicly and off when using them for your own reference.
+### Parameter Categories
 
-## Manually installing the plugin
+#### Force Simulation
+- `force.alphaDecay`: Simulation cooling rate
+- `force.velocityDecay`: Node movement damping
+- `force.alphaMin`: Minimum simulation energy
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+#### Visual Styling
+- `nodeStyle.size`: Base node size
+- `nodeStyle.opacity`: Node transparency
+- `linkStyle.opacity`: Link transparency
+- `linkStyle.width`: Link thickness
+- `bloom.strength`: Glow effect intensity
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
+#### Performance
+- `performance.warmupTicks`: Initial simulation steps
+- `performance.cooldownTicks`: Maximum simulation steps
+- `performance.cooldownTime`: Auto-pause delay
 
-## Funding URL
+## Development
 
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+### Setup
+```bash
+npm install
+npm run dev
 ```
 
-If you have multiple URLs, you can also do:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+### Build
+```bash
+npm run build
 ```
 
-## API Documentation
+### Test
+```bash
+npm test
+```
 
-See https://github.com/obsidianmd/obsidian-api
+## Projects used
+
+- [Obsidian](https://obsidian.md) - The knowledge management platform this plugin extends
+- [Three.js](https://threejs.org) - 3D graphics library for WebGL rendering
+- [3d-force-graph](https://github.com/vasturiano/3d-force-graph) - Base force-directed graph library (heavily patched and integrated)
+- [Vitest](https://vitest.dev) - Testing framework for unit tests
+
+## License
+
+MIT License - see LICENSE file for details.
