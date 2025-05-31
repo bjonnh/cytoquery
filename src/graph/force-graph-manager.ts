@@ -1,6 +1,6 @@
 import { App, CachedMetadata } from 'obsidian';
 import * as THREE from 'three';
-import { NodeSet, EdgeSet } from '../../utils';
+import { NodeSet, EdgeSet } from '../utils';
 import { GraphData, GraphNode, GraphParameters } from '../types/graph';
 import { QueryParser, parseParametersAndQuery } from '../query';
 import { buildGraphData, saveParametersToCodeBlock, openFileInNewTab } from '../obsidian';

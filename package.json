@@ -2,10 +2,11 @@
 	"name": "obsidian-cytoquery",
 	"version": "1.0.0",
 	"description": "A query language and graph visualizer, something like that.",
-	"main": "main.js",
+	"main": "build/main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production && npm run postbuild",
+		"postbuild": "mkdir -p build && cp manifest.json versions.json styles.css build/",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test": "vitest run",
 		"test:ui": "vitest --ui"

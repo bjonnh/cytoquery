@@ -33,26 +33,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     const resetViewButton = document.createElement('button');
     resetViewButton.innerHTML = '⟲';
     resetViewButton.title = 'Reset View to Center';
-    resetViewButton.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 16px;
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        color: white;
-        font-size: 20px;
-        cursor: pointer;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
-    resetViewButton.onmouseover = () => resetViewButton.style.background = 'rgba(0, 0, 0, 0.8)';
-    resetViewButton.onmouseout = () => resetViewButton.style.background = 'rgba(0, 0, 0, 0.7)';
+    resetViewButton.className = 'graph-control-button reset-view';
     resetViewButton.onclick = callbacks.onResetView;
     container.appendChild(resetViewButton);
 
@@ -60,62 +41,19 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     const unlockAllButton = document.createElement('button');
     unlockAllButton.innerHTML = '🔓';
     unlockAllButton.title = 'Unlock All Nodes';
-    unlockAllButton.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 58px;
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
-    unlockAllButton.onmouseover = () => unlockAllButton.style.background = 'rgba(0, 0, 0, 0.8)';
-    unlockAllButton.onmouseout = () => unlockAllButton.style.background = 'rgba(0, 0, 0, 0.7)';
+    unlockAllButton.className = 'graph-control-button unlock-all';
     unlockAllButton.onclick = callbacks.onUnlockAll;
-    unlockAllButton.style.display = 'none';
     container.appendChild(unlockAllButton);
 
     // Create find path buttons container
     const pathButtonsContainer = document.createElement('div');
-    pathButtonsContainer.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 100px;
-        display: flex;
-        gap: 4px;
-        z-index: 1000;
-    `;
-    pathButtonsContainer.style.display = 'none';
+    pathButtonsContainer.className = 'path-buttons-container';
     
     // Create directed path button
     const directedPathButton = document.createElement('button');
     directedPathButton.innerHTML = '→';
     directedPathButton.title = 'Find Directed Path';
-    directedPathButton.style.cssText = `
-        width: 36px;
-        height: 36px;
-        background: rgba(100, 200, 100, 0.3);
-        border: 1px solid rgba(100, 200, 100, 0.5);
-        border-radius: 8px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
-    directedPathButton.onmouseover = () => directedPathButton.style.background = 'rgba(100, 200, 100, 0.4)';
-    directedPathButton.onmouseout = () => directedPathButton.style.background = 'rgba(100, 200, 100, 0.3)';
+    directedPathButton.className = 'path-button';
     directedPathButton.onclick = callbacks.onFindDirectedPath;
     pathButtonsContainer.appendChild(directedPathButton);
     
@@ -123,22 +61,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     const undirectedPathButton = document.createElement('button');
     undirectedPathButton.innerHTML = '↔';
     undirectedPathButton.title = 'Find Undirected Path';
-    undirectedPathButton.style.cssText = `
-        width: 36px;
-        height: 36px;
-        background: rgba(100, 200, 100, 0.3);
-        border: 1px solid rgba(100, 200, 100, 0.5);
-        border-radius: 8px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
-    undirectedPathButton.onmouseover = () => undirectedPathButton.style.background = 'rgba(100, 200, 100, 0.4)';
-    undirectedPathButton.onmouseout = () => undirectedPathButton.style.background = 'rgba(100, 200, 100, 0.3)';
+    undirectedPathButton.className = 'path-button';
     undirectedPathButton.onclick = callbacks.onFindUndirectedPath;
     pathButtonsContainer.appendChild(undirectedPathButton);
     
@@ -148,26 +71,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     const clearPathButton = document.createElement('button');
     clearPathButton.innerHTML = '✕';
     clearPathButton.title = 'Clear Path';
-    clearPathButton.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 180px;
-        width: 36px;
-        height: 36px;
-        background: rgba(200, 100, 100, 0.3);
-        border: 1px solid rgba(200, 100, 100, 0.5);
-        border-radius: 8px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        z-index: 1000;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
-    clearPathButton.onmouseover = () => clearPathButton.style.background = 'rgba(200, 100, 100, 0.4)';
-    clearPathButton.onmouseout = () => clearPathButton.style.background = 'rgba(200, 100, 100, 0.3)';
+    clearPathButton.className = 'clear-path-button';
     clearPathButton.onclick = callbacks.onClearPath;
     container.appendChild(clearPathButton);
 
@@ -175,26 +79,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     const saveButton = document.createElement('button');
     saveButton.innerHTML = '💾';
     saveButton.title = 'Save Parameters to Code Block';
-    saveButton.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 222px;
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
-    saveButton.onmouseover = () => saveButton.style.background = 'rgba(0, 0, 0, 0.8)';
-    saveButton.onmouseout = () => saveButton.style.background = 'rgba(0, 0, 0, 0.7)';
+    saveButton.className = 'graph-control-button save-params';
     saveButton.onclick = callbacks.onSaveParameters;
     container.appendChild(saveButton);
 
@@ -202,24 +87,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     const idleRotationButton = document.createElement('button');
     idleRotationButton.innerHTML = '🔄';
     idleRotationButton.title = 'Toggle Idle Rotation Mode';
-    idleRotationButton.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 264px;
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
+    idleRotationButton.className = 'graph-control-button idle-rotation';
     idleRotationButton.onclick = callbacks.onToggleIdleRotation;
     container.appendChild(idleRotationButton);
 
@@ -227,74 +95,20 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     const fpsLimiterButton = document.createElement('button');
     fpsLimiterButton.innerHTML = '⚡';
     fpsLimiterButton.title = 'Toggle FPS Limiter (60 FPS when disabled)';
-    fpsLimiterButton.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 306px;
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
+    fpsLimiterButton.className = 'graph-control-button fps-limiter';
     fpsLimiterButton.onclick = callbacks.onToggleFPSLimiter;
     container.appendChild(fpsLimiterButton);
 
     // Create hamburger menu button
     const menuButton = document.createElement('button');
     menuButton.innerHTML = '☰';
-    menuButton.style.cssText = `
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        width: 36px;
-        height: 36px;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        color: white;
-        font-size: 20px;
-        cursor: pointer;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-    `;
-    menuButton.onmouseover = () => menuButton.style.background = 'rgba(0, 0, 0, 0.8)';
-    menuButton.onmouseout = () => menuButton.style.background = 'rgba(0, 0, 0, 0.7)';
+    menuButton.className = 'graph-control-button menu';
     menuButton.onclick = callbacks.onSettingsToggle;
     container.appendChild(menuButton);
 
     // Create settings panel
     const settingsPanel = document.createElement('div');
-    settingsPanel.style.cssText = `
-        position: absolute;
-        top: 0;
-        right: -320px;
-        width: 300px;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.9);
-        border-left: 1px solid rgba(255, 255, 255, 0.2);
-        color: white;
-        padding: 20px;
-        padding-bottom: 40px;
-        overflow-y: auto;
-        overflow-x: hidden;
-        transition: right 0.3s ease;
-        z-index: 999;
-        font-family: sans-serif;
-        font-size: 12px;
-        box-sizing: border-box;
-    `;
+    settingsPanel.className = 'graph-settings-panel';
     container.appendChild(settingsPanel);
 
     return {
@@ -318,51 +132,23 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
 
 export function createParsingErrorDisplay(container: HTMLElement, errors: string[]): void {
     const errorContainer = document.createElement('div');
-    errorContainer.style.cssText = `
-        position: absolute;
-        top: 70px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(200, 50, 50, 0.9);
-        border: 1px solid rgba(255, 100, 100, 0.5);
-        border-radius: 8px;
-        padding: 12px 20px;
-        color: white;
-        font-family: sans-serif;
-        font-size: 14px;
-        z-index: 1001;
-        max-width: 80%;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    `;
+    errorContainer.className = 'graph-error-container';
     
     const errorTitle = document.createElement('div');
     errorTitle.textContent = 'Query Parsing Error:';
-    errorTitle.style.cssText = 'font-weight: bold; margin-bottom: 8px;';
+    errorTitle.className = 'graph-error-title';
     errorContainer.appendChild(errorTitle);
     
     errors.forEach(error => {
         const errorMsg = document.createElement('div');
         errorMsg.textContent = error;
-        errorMsg.style.cssText = 'margin-bottom: 4px;';
+        errorMsg.className = 'graph-error-message';
         errorContainer.appendChild(errorMsg);
     });
     
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '×';
-    closeBtn.style.cssText = `
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background: transparent;
-        border: none;
-        color: white;
-        font-size: 20px;
-        cursor: pointer;
-        width: 24px;
-        height: 24px;
-        padding: 0;
-        line-height: 1;
-    `;
+    closeBtn.className = 'graph-error-close';
     closeBtn.onclick = () => errorContainer.remove();
     errorContainer.appendChild(closeBtn);
     

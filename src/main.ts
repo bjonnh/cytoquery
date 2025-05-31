@@ -4,7 +4,7 @@ import {
 	PluginSettingTab,
 	Setting
 } from 'obsidian';
-import { init3DForceGraph } from './src/graph/force-graph-manager';
+import { init3DForceGraph } from './graph/force-graph-manager';
 
 interface CytoQuerySettings {
 	mySetting: string;

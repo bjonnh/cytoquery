@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { QueryParser } from './src/query/query-parser';
-import type { QueryRule } from './src/query/query-parser';
+import { QueryParser } from './query/query-parser';
+import type { QueryRule } from './query/query-parser';
 import { Node, EdgeSet } from './utils';
 import { CachedMetadata } from 'obsidian';
 

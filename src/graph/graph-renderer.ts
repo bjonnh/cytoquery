@@ -1,6 +1,6 @@
-import ForceGraph3D from "../../3d-force-graph.js";
+import ForceGraph3D from "../lib/3d-force-graph.js";
 import * as THREE from "three";
-import { UnrealBloomPass } from '../../UnrealBloomPass';
+import { UnrealBloomPass } from '../lib/UnrealBloomPass';
 import { GraphParameters, GraphData, GraphNode } from '../types/graph';
 
 export interface GraphInstance {

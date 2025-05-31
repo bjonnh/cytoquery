@@ -1,5 +1,5 @@
 import { App, CachedMetadata, getLinkpath, TFile } from 'obsidian';
-import { NodeSet, EdgeSet } from '../../utils';
+import { NodeSet, EdgeSet } from '../utils';
 
 export function buildGraphData(
     app: App,
