@@ -98,6 +98,64 @@ jobs:
         draft: false
         prerelease: false
   
+  beta-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_beta_release == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: obsidian-cytoquery-build
+        path: ./release
+    
+    - name: Get version and create beta tag
+      id: beta_version
+      run: |
+        # Read current version from manifest.json
+        CURRENT_VERSION=$(jq -r '.version' < manifest.json)
+        # Create timestamp with seconds precision
+        TIMESTAMP=$(date +%s)
+        # Create beta version
+        BETA_VERSION="${CURRENT_VERSION}-beta.${TIMESTAMP}"
+        echo "version=$BETA_VERSION" >> $GITHUB_OUTPUT
+        echo "tag=v$BETA_VERSION" >> $GITHUB_OUTPUT
+        echo "Beta version: $BETA_VERSION"
+    
+    - name: Create release bundle
+      run: |
+        cd release
+        zip -r ../obsidian-cytoquery-beta.zip main.js manifest.json styles.css
+        cd ..
+    
+    - name: Create Beta Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.beta_version.outputs.tag }}
+        name: "Beta Release ${{ steps.beta_version.outputs.version }}"
+        files: |
+          obsidian-cytoquery-beta.zip
+          release/main.js
+          release/manifest.json
+          release/styles.css
+        generate_release_notes: true
+        draft: false
+        prerelease: true
+        body: |
+          This is a beta release of Obsidian CytoQuery.
+          
+          **Version:** ${{ steps.beta_version.outputs.version }}
+          
+          To install this beta version using BRAT:
+          1. Install the BRAT plugin if you haven't already
+          2. Add this repository to BRAT
+          3. Select this specific beta version from the version picker
+          
+          **Note:** This beta release uses the same manifest.json version as the stable release to ensure compatibility with BRAT and Obsidian's update system.
+  
   deploy-demo:
     needs: build
     runs-on: ubuntu-latest
