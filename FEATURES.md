@@ -47,3 +47,8 @@
   - Interactive controls for graph manipulation
   - Real-time FPS counter and statistics display
   - Demonstrates node selection, camera controls, and visual effects
+- Platform Abstraction Layer:
+  - Core graph logic isolated from Obsidian dependencies via GraphPlatformAdapter interface
+  - Enables code reuse between Obsidian plugin and standalone demo
+  - Clean separation of concerns with platform-specific implementations
+  - Simplified maintenance and testing of graph functionality

@@ -19,36 +19,17 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-        }
-        
-        #graph-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            background-color: #000003;
-        }
-        
-        .force-graph-3d {
-            width: 100%;
-            height: 100%;
-            background-color: #000003;
+            display: flex;
+            flex-direction: column;
         }
         
         .demo-header {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            position: relative;
             background: rgba(30, 30, 30, 0.9);
             backdrop-filter: blur(10px);
             padding: 15px 20px;
             z-index: 100;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-            pointer-events: none;
-        }
-        
-        .demo-header > * {
-            pointer-events: auto;
         }
         
         .demo-header h1 {
@@ -65,10 +46,26 @@
             font-size: 12px;
         }
         
+        #graph-container {
+            position: relative;
+            width: 100%;
+            flex: 1;
+            background-color: #000003;
+        }
+        
+        .force-graph-3d {
+            width: 100%;
+            height: 100%;
+            background-color: #000003;
+            margin: 0;
+            border-radius: 0;
+            position: relative;
+        }
+        
         .demo-info {
             position: absolute;
             bottom: 20px;
-            right: 20px;
+            left: 20px;
             background: rgba(30, 30, 30, 0.9);
             backdrop-filter: blur(10px);
             padding: 12px;
@@ -78,6 +75,7 @@
             line-height: 1.4;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
             pointer-events: none;
+            z-index: 1000;
         }
         
         .demo-info h3 {
@@ -94,82 +92,22 @@
         .demo-info li {
             margin-bottom: 3px;
         }
-        
-        .loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 1000;
+
+        /* Force graph canvas positioning */
+        #graph-container canvas {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 1 !important;
         }
         
-        .loading-spinner {
-            border: 4px solid rgba(99, 102, 241, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid #6366f1;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Override some control button positions for demo */
+        /* Show specific buttons we want in demo */
         .graph-control-button.save-params {
-            display: none;
+            display: none !important;
         }
-        
-        .graph-control-button.idle-rotation {
-            left: 222px;
-        }
-        
-        .graph-control-button.fps-limiter {
-            left: 264px;
-        }
-        
-        /* Active states for buttons */
-        .graph-control-button.active {
-            background: rgba(99, 102, 241, 0.3);
-            border-color: #6366f1;
-        }
-        
-        .graph-control-button.fps-disabled {
-            background: rgba(200, 50, 50, 0.3);
-            border-color: rgba(255, 100, 100, 0.5);
-        }
-        
-        /* Path visualization status */
-        .path-status {
-            position: absolute;
-            top: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(100, 200, 100, 0.2);
-            border: 1px solid rgba(100, 200, 100, 0.5);
-            border-radius: 6px;
-            padding: 8px 16px;
-            color: white;
-            font-size: 12px;
-            z-index: 101;
-            display: none;
-        }
-        
-        /* Hide demo header controls on small screens */
+
+        /* Hide demo info on small screens */
         @media (max-width: 768px) {
-            .demo-header {
-                font-size: 12px;
-                padding: 10px;
-            }
-            
-            .demo-header h1 {
-                font-size: 16px;
-            }
-            
             .demo-info {
                 display: none;
             }
@@ -183,14 +121,12 @@
             <p>Interactive demo showcasing all plugin features</p>
         </div>
         
-        <div id="graph-container">
+        <div id="graph-container" class="force-graph-3d">
             <div class="loading">
                 <div class="loading-spinner"></div>
                 <p>Initializing 3D Graph...</p>
             </div>
         </div>
-        
-        <div class="path-status" id="path-status"></div>
         
         <div class="demo-info">
             <h3>🎮 Controls</h3>
@@ -206,766 +142,38 @@
                 <li>Set path endpoints 🎯🏁</li>
                 <li>Lock nodes with 🔒</li>
                 <li>Toggle idle rotation 🔄</li>
-            </ul>
+             </ul>
         </div>
     </div>
     
-    <script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js"></script>
+    <script src="cytoquery-demo.js"></script>
     <script>
-        // Demo state management
-        const demoState = {
-            graph: null,
-            graphData: { nodes: [], links: [] },
-            selectedNode: null,
-            sourceNode: null,
-            targetNode: null,
-            currentPath: [],
-            lockedNodes: new Set(),
-            restrictedNode: null,
-            restrictionDepth: 2,
-            idleRotationEnabled: false,
-            idleRotationInterval: null,
-            fpsLimiterEnabled: true,
-            fpsInterval: null,
-            currentMenu: null,
-            nodeAnimations: new Map()
-        };
-        
-        // Create circular menu
-        function createCircularMenu(node, event) {
-            // Close existing menu
-            if (demoState.currentMenu) {
-                demoState.currentMenu.remove();
-            }
-            
-            const container = document.getElementById('graph-container');
-            const menu = document.createElement('div');
-            menu.className = 'circular-menu';
-            
-            // Get container bounds
-            const containerRect = container.getBoundingClientRect();
-            let menuX = event.clientX - containerRect.left;
-            let menuY = event.clientY - containerRect.top;
-            
-            // Ensure menu stays within bounds
-            const menuRadius = 120;
-            menuX = Math.max(menuRadius, Math.min(containerRect.width - menuRadius, menuX));
-            menuY = Math.max(menuRadius, Math.min(containerRect.height - menuRadius, menuY));
-            
-            menu.style.cssText = `
-                position: absolute;
-                left: ${menuX}px;
-                top: ${menuY}px;
-                transform: translate(-50%, -50%);
-                z-index: 1000;
-            `;
-            
-            // Center node name
-            const centerDiv = document.createElement('div');
-            centerDiv.style.cssText = `
-                position: absolute;
-                left: 50%;
-                top: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.8);
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                border-radius: 12px;
-                padding: 8px 16px;
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
-                white-space: nowrap;
-                cursor: move;
-                user-select: none;
-            `;
-            centerDiv.textContent = node.name || node.id;
-            menu.appendChild(centerDiv);
-            
-            // Menu items
-            const menuItems = [
-                { icon: '📄', label: 'Open Note', action: () => alert(`Would open note: ${node.name}`) },
-                { 
-                    icon: demoState.lockedNodes.has(node.id) ? '🔓' : '🔒', 
-                    label: demoState.lockedNodes.has(node.id) ? 'Unlock' : 'Lock',
-                    action: () => toggleNodeLock(node)
-                },
-                { icon: '🎯', label: 'Set as Source', action: () => setSourceNode(node), color: '#4CAF50' },
-                { icon: '🏁', label: 'Set as Target', action: () => setTargetNode(node), color: '#f44336' },
-                { icon: '👁️', label: 'Center View', action: () => centerOnNode(node) },
-                { icon: '🔍', label: 'Show Neighbors', action: () => restrictToNode(node) }
-            ];
-            
-            // Add remove restriction option if active
-            if (demoState.restrictedNode) {
-                menuItems.push({ 
-                    icon: '↩️', 
-                    label: 'Show All', 
-                    action: () => removeRestriction(),
-                    color: '#FF9800'
-                });
-            }
-            
-            // Create menu items
-            menuItems.forEach((item, index) => {
-                const angle = (index * 2 * Math.PI) / menuItems.length - Math.PI / 2;
-                const radius = 80;
-                const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle) * radius;
-                
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'circular-menu-item';
-                itemDiv.style.cssText = `
-                    position: absolute;
-                    left: 50%;
-                    top: 50%;
-                    width: 48px;
-                    height: 48px;
-                    margin-left: ${x - 24}px;
-                    margin-top: ${y - 24}px;
-                    background: ${item.color || 'rgba(0, 0, 0, 0.8)'};
-                    border: 2px solid rgba(255, 255, 255, 0.3);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 24px;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    animation: circularMenuItemAppear 0.3s ease-out;
-                    animation-delay: ${index * 0.05}s;
-                    animation-fill-mode: both;
-                `;
-                
-                itemDiv.innerHTML = item.icon;
-                itemDiv.title = item.label;
-                
-                itemDiv.addEventListener('mouseenter', () => {
-                    itemDiv.style.transform = 'scale(1.2)';
-                    itemDiv.style.zIndex = '1001';
-                });
-                
-                itemDiv.addEventListener('mouseleave', () => {
-                    itemDiv.style.transform = 'scale(1)';
-                    itemDiv.style.zIndex = 'auto';
-                });
-                
-                itemDiv.addEventListener('click', () => {
-                    item.action();
-                    menu.remove();
-                    demoState.currentMenu = null;
-                });
-                
-                menu.appendChild(itemDiv);
-            });
-            
-            // Make menu draggable
-            let isDragging = false;
-            let dragStartX, dragStartY;
-            
-            centerDiv.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                dragStartX = e.clientX - menuX;
-                dragStartY = e.clientY - menuY;
-                centerDiv.style.cursor = 'grabbing';
-            });
-            
-            document.addEventListener('mousemove', (e) => {
-                if (isDragging) {
-                    menuX = e.clientX - dragStartX;
-                    menuY = e.clientY - dragStartY;
-                    menu.style.left = menuX + 'px';
-                    menu.style.top = menuY + 'px';
-                }
-            });
-            
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-                centerDiv.style.cursor = 'move';
-            });
-            
-            // Close on click outside
-            setTimeout(() => {
-                document.addEventListener('click', function closeMenu(e) {
-                    if (!menu.contains(e.target)) {
-                        menu.style.animation = 'circularMenuFadeOut 0.2s ease-out';
-                        setTimeout(() => {
-                            menu.remove();
-                            demoState.currentMenu = null;
-                        }, 200);
-                        document.removeEventListener('click', closeMenu);
-                    }
-                });
-            }, 100);
-            
-            container.appendChild(menu);
-            demoState.currentMenu = menu;
-        }
-        
-        // Node actions
-        function toggleNodeLock(node) {
-            if (demoState.lockedNodes.has(node.id)) {
-                demoState.lockedNodes.delete(node.id);
-                // Unfix position
-                delete node.fx;
-                delete node.fy;
-                delete node.fz;
-            } else {
-                demoState.lockedNodes.add(node.id);
-                // Fix position
-                node.fx = node.x;
-                node.fy = node.y;
-                node.fz = node.z;
-            }
-            demoState.graph.nodeThreeObject(demoState.graph.nodeThreeObject());
-            updateUIState();
-        }
-        
-        function setSourceNode(node) {
-            demoState.sourceNode = node.id;
-            updatePathButtons();
-            updateNodeColors();
-        }
-        
-        function setTargetNode(node) {
-            demoState.targetNode = node.id;
-            updatePathButtons();
-            updateNodeColors();
-        }
-        
-        function centerOnNode(node) {
-            const distance = 200;
-            const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
-            demoState.graph.cameraPosition(
-                { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
-                { x: node.x, y: node.y, z: node.z },
-                1000
-            );
-        }
-        
-        function restrictToNode(node) {
-            demoState.restrictedNode = node.id;
-            demoState.restrictionDepth = 2;
-            
-            // Get neighbors within depth
-            const neighbors = new Set([node.id]);
-            const visited = new Set([node.id]);
-            const queue = [{ id: node.id, depth: 0 }];
-            
-            while (queue.length > 0) {
-                const current = queue.shift();
-                if (current.depth >= demoState.restrictionDepth) continue;
-                
-                demoState.graphData.links.forEach(link => {
-                    const source = typeof link.source === 'object' ? link.source.id : link.source;
-                    const target = typeof link.target === 'object' ? link.target.id : link.target;
-                    
-                    let neighbor = null;
-                    if (source === current.id && !visited.has(target)) {
-                        neighbor = target;
-                    } else if (target === current.id && !visited.has(source)) {
-                        neighbor = source;
-                    }
-                    
-                    if (neighbor) {
-                        visited.add(neighbor);
-                        neighbors.add(neighbor);
-                        queue.push({ id: neighbor, depth: current.depth + 1 });
-                    }
-                });
-            }
-            
-            // Filter graph data
-            const filteredNodes = demoState.graphData.nodes.filter(n => neighbors.has(n.id));
-            const filteredLinks = demoState.graphData.links.filter(l => {
-                const source = typeof l.source === 'object' ? l.source.id : l.source;
-                const target = typeof l.target === 'object' ? l.target.id : l.target;
-                return neighbors.has(source) && neighbors.has(target);
-            });
-            
-            demoState.graph.graphData({ nodes: filteredNodes, links: filteredLinks });
-            centerOnNode(node);
-        }
-        
-        function removeRestriction() {
-            demoState.restrictedNode = null;
-            demoState.graph.graphData(demoState.graphData);
-        }
-        
-        // Pathfinding
-        function findPath(directed = false) {
-            if (!demoState.sourceNode || !demoState.targetNode) {
-                alert('Please set both source and target nodes first!');
-                return;
-            }
-            
-            // Simple BFS pathfinding
-            const queue = [[demoState.sourceNode]];
-            const visited = new Set();
-            
-            while (queue.length > 0) {
-                const path = queue.shift();
-                const current = path[path.length - 1];
-                
-                if (current === demoState.targetNode) {
-                    demoState.currentPath = path;
-                    showPathStatus(`Path found: ${path.length} nodes`);
-                    updatePathVisualization();
-                    return;
-                }
-                
-                if (visited.has(current)) continue;
-                visited.add(current);
-                
-                demoState.graphData.links.forEach(link => {
-                    const source = typeof link.source === 'object' ? link.source.id : link.source;
-                    const target = typeof link.target === 'object' ? link.target.id : link.target;
-                    
-                    if (directed && source === current && !visited.has(target)) {
-                        queue.push([...path, target]);
-                    } else if (!directed) {
-                        if (source === current && !visited.has(target)) {
-                            queue.push([...path, target]);
-                        } else if (target === current && !visited.has(source)) {
-                            queue.push([...path, source]);
-                        }
-                    }
-                });
-            }
-            
-            showPathStatus('No path found!');
-        }
-        
-        function clearPath() {
-            demoState.currentPath = [];
-            demoState.sourceNode = null;
-            demoState.targetNode = null;
-            updatePathVisualization();
-            updatePathButtons();
-            document.getElementById('path-status').style.display = 'none';
-        }
-        
-        function showPathStatus(message) {
-            const status = document.getElementById('path-status');
-            status.textContent = message;
-            status.style.display = 'block';
-            setTimeout(() => {
-                status.style.display = 'none';
-            }, 3000);
-        }
-        
-        function updatePathVisualization() {
-            // Update link colors and widths
-            demoState.graph
-                .linkColor(demoState.graph.linkColor())
-                .linkWidth(demoState.graph.linkWidth());
-            updateNodeColors();
-        }
-        
-        function updateNodeColors() {
-            demoState.graph.nodeColor(node => {
-                if (node.id === demoState.sourceNode) return '#4CAF50';
-                if (node.id === demoState.targetNode) return '#f44336';
-                if (demoState.currentPath.includes(node.id)) return '#FFC107';
-                if (node.id === demoState.selectedNode) return '#00ff00';
-                return '#6366f1';
-            });
-        }
-        
-        function updatePathButtons() {
-            const pathButtonsContainer = document.querySelector('.path-buttons-container');
-            const clearButton = document.querySelector('.clear-path-button');
-            
-            if (demoState.sourceNode && demoState.targetNode) {
-                pathButtonsContainer.style.display = 'flex';
-            } else {
-                pathButtonsContainer.style.display = 'none';
-            }
-            
-            if (demoState.currentPath.length > 0) {
-                clearButton.style.display = 'flex';
-            } else {
-                clearButton.style.display = 'none';
-            }
-        }
-        
-        // UI Controls
-        function createUIControls() {
-            const container = document.getElementById('graph-container');
-            
-            // Reset view button
-            const resetViewButton = document.createElement('button');
-            resetViewButton.innerHTML = '⟲';
-            resetViewButton.title = 'Reset View to Center';
-            resetViewButton.className = 'graph-control-button reset-view';
-            resetViewButton.onclick = () => {
-                demoState.graph.cameraPosition(
-                    { x: 0, y: 0, z: 300 },
-                    { x: 0, y: 0, z: 0 },
-                    1000
-                );
-            };
-            container.appendChild(resetViewButton);
-            
-            // Unlock all button
-            const unlockAllButton = document.createElement('button');
-            unlockAllButton.innerHTML = '🔓';
-            unlockAllButton.title = 'Unlock All Nodes';
-            unlockAllButton.className = 'graph-control-button unlock-all';
-            unlockAllButton.onclick = () => {
-                demoState.graphData.nodes.forEach(node => {
-                    if (demoState.lockedNodes.has(node.id)) {
-                        demoState.lockedNodes.delete(node.id);
-                        delete node.fx;
-                        delete node.fy;
-                        delete node.fz;
-                    }
-                });
-                demoState.graph.nodeThreeObject(demoState.graph.nodeThreeObject());
-                updateUIState();
-            };
-            container.appendChild(unlockAllButton);
-            
-            // Path buttons container
-            const pathButtonsContainer = document.createElement('div');
-            pathButtonsContainer.className = 'path-buttons-container';
-            
-            const directedPathButton = document.createElement('button');
-            directedPathButton.innerHTML = '→';
-            directedPathButton.title = 'Find Directed Path';
-            directedPathButton.className = 'path-button';
-            directedPathButton.onclick = () => findPath(true);
-            pathButtonsContainer.appendChild(directedPathButton);
-            
-            const undirectedPathButton = document.createElement('button');
-            undirectedPathButton.innerHTML = '↔';
-            undirectedPathButton.title = 'Find Undirected Path';
-            undirectedPathButton.className = 'path-button';
-            undirectedPathButton.onclick = () => findPath(false);
-            pathButtonsContainer.appendChild(undirectedPathButton);
-            
-            container.appendChild(pathButtonsContainer);
-            
-            // Clear path button
-            const clearPathButton = document.createElement('button');
-            clearPathButton.innerHTML = '✕';
-            clearPathButton.title = 'Clear Path';
-            clearPathButton.className = 'clear-path-button';
-            clearPathButton.onclick = clearPath;
-            container.appendChild(clearPathButton);
-            
-            // Idle rotation button
-            const idleRotationButton = document.createElement('button');
-            idleRotationButton.innerHTML = '🔄';
-            idleRotationButton.title = 'Toggle Idle Rotation Mode';
-            idleRotationButton.className = 'graph-control-button idle-rotation';
-            idleRotationButton.onclick = toggleIdleRotation;
-            container.appendChild(idleRotationButton);
-            
-            // FPS limiter button
-            const fpsLimiterButton = document.createElement('button');
-            fpsLimiterButton.innerHTML = '⚡';
-            fpsLimiterButton.title = 'Toggle FPS Limiter (60 FPS when disabled)';
-            fpsLimiterButton.className = 'graph-control-button fps-limiter';
-            fpsLimiterButton.onclick = toggleFPSLimiter;
-            container.appendChild(fpsLimiterButton);
-            
-            updateUIState();
-        }
-        
-        function toggleIdleRotation() {
-            demoState.idleRotationEnabled = !demoState.idleRotationEnabled;
-            const button = document.querySelector('.idle-rotation');
-            
-            if (demoState.idleRotationEnabled) {
-                button.classList.add('active');
-                // Simulate mouse movement to keep graph active
-                demoState.idleRotationInterval = setInterval(() => {
-                    const angle = Date.now() * 0.0003;
-                    const distance = 300;
-                    demoState.graph.cameraPosition({
-                        x: distance * Math.sin(angle),
-                        y: distance * Math.sin(angle * 0.7) * 0.5,
-                        z: distance * Math.cos(angle)
-                    });
-                }, 50);
-            } else {
-                button.classList.remove('active');
-                if (demoState.idleRotationInterval) {
-                    clearInterval(demoState.idleRotationInterval);
-                    demoState.idleRotationInterval = null;
-                }
-            }
-        }
-        
-        function toggleFPSLimiter() {
-            demoState.fpsLimiterEnabled = !demoState.fpsLimiterEnabled;
-            const button = document.querySelector('.fps-limiter');
-            const renderer = demoState.graph.renderer();
-            
-            if (!demoState.fpsLimiterEnabled) {
-                button.classList.add('fps-disabled');
-                // Keep graph active by simulating events
-                demoState.fpsInterval = setInterval(() => {
-                    if (renderer && renderer.domElement) {
-                        renderer.domElement.dispatchEvent(new MouseEvent('mousemove', {
-                            clientX: 1,
-                            clientY: 1,
-                            bubbles: true
-                        }));
-                    }
-                }, 90);
-            } else {
-                button.classList.remove('fps-disabled');
-                if (demoState.fpsInterval) {
-                    clearInterval(demoState.fpsInterval);
-                    demoState.fpsInterval = null;
-                }
-            }
-        }
-        
-        function updateUIState() {
-            // Show/hide unlock all button
-            const unlockButton = document.querySelector('.unlock-all');
-            if (demoState.lockedNodes.size > 0) {
-                unlockButton.style.display = 'flex';
-            } else {
-                unlockButton.style.display = 'none';
-            }
-        }
-        
-        // Create node visual effects
-        function createNodeObject(node) {
-            const group = new THREE.Group();
-            
-            // Base geometry
-            const size = Math.sqrt(node.val) * 2;
-            const geometry = new THREE.SphereGeometry(size, 32, 32);
-            
-            // Determine color
-            let color = 0x6366f1;
-            if (node.id === demoState.sourceNode) color = 0x4CAF50;
-            else if (node.id === demoState.targetNode) color = 0xf44336;
-            else if (demoState.currentPath.includes(node.id)) color = 0xFFC107;
-            else if (node.id === demoState.selectedNode) color = 0x00ff00;
-            
-            // Main sphere
-            const material = new THREE.MeshPhongMaterial({
-                color: color,
-                emissive: color,
-                emissiveIntensity: 0.3,
-                shininess: 100
-            });
-            const sphere = new THREE.Mesh(geometry, material);
-            group.add(sphere);
-            
-            // Add halo for selected node
-            if (node.id === demoState.selectedNode) {
-                const haloGeometry = new THREE.SphereGeometry(size * 1.6, 32, 32);
-                const haloMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x00ff00,
-                    transparent: true,
-                    opacity: 0.3,
-                    side: THREE.BackSide
-                });
-                const halo = new THREE.Mesh(haloGeometry, haloMaterial);
-                group.add(halo);
-            }
-            
-            // Add lock indicators
-            if (demoState.lockedNodes.has(node.id)) {
-                for (let i = 0; i < 4; i++) {
-                    const arrow = createArrow(0xffd700);
-                    const angle = (i * Math.PI) / 2;
-                    arrow.position.set(
-                        Math.cos(angle) * size * 2,
-                        0,
-                        Math.sin(angle) * size * 2
-                    );
-                    arrow.lookAt(0, 0, 0);
-                    
-                    // Animate arrows
-                    const animData = {
-                        arrow,
-                        angle,
-                        baseDistance: size * 2,
-                        time: Date.now() + i * 250
-                    };
-                    
-                    if (!demoState.nodeAnimations.has(node.id)) {
-                        demoState.nodeAnimations.set(node.id, []);
-                    }
-                    demoState.nodeAnimations.get(node.id).push(animData);
-                    
-                    group.add(arrow);
-                }
-            } else {
-                // Clear animations for this node
-                demoState.nodeAnimations.delete(node.id);
-            }
-            
-            // Add restriction center effect
-            if (demoState.restrictedNode === node.id) {
-                // Outer transparent sphere
-                const restrictionGeometry = new THREE.SphereGeometry(size * 3, 32, 32);
-                const restrictionMaterial = new THREE.MeshPhysicalMaterial({
-                    color: 0x9c27b0,
-                    metalness: 0,
-                    roughness: 0,
-                    transmission: 0.9,
-                    transparent: true,
-                    opacity: 0.3,
-                    side: THREE.DoubleSide
-                });
-                const restrictionSphere = new THREE.Mesh(restrictionGeometry, restrictionMaterial);
-                group.add(restrictionSphere);
-                
-                // Inner glow
-                const glowGeometry = new THREE.SphereGeometry(size * 2.5, 32, 32);
-                const glowMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xe91e63,
-                    transparent: true,
-                    opacity: 0.2
-                });
-                const glowSphere = new THREE.Mesh(glowGeometry, glowMaterial);
-                group.add(glowSphere);
-            }
-            
-            return group;
-        }
-        
-        function createArrow(color) {
-            const geometry = new THREE.ConeGeometry(1.5, 4, 4);
-            const material = new THREE.MeshPhongMaterial({
-                color: color,
-                emissive: color,
-                emissiveIntensity: 0.5
-            });
-            return new THREE.Mesh(geometry, material);
-        }
-        
-        // Animation loop for lock indicators
-        function animateLockIndicators() {
-            const time = Date.now();
-            
-            demoState.nodeAnimations.forEach((animations, nodeId) => {
-                animations.forEach(animData => {
-                    const oscillation = Math.sin((time - animData.time) * 0.003) * 0.3 + 0.7;
-                    const distance = animData.baseDistance * oscillation;
-                    animData.arrow.position.set(
-                        Math.cos(animData.angle) * distance,
-                        0,
-                        Math.sin(animData.angle) * distance
-                    );
-                });
-            });
-            
-            requestAnimationFrame(animateLockIndicators);
-        }
-        
-        // Initialize graph
-        function initializeGraph() {
-            const container = document.getElementById('graph-container');
-            container.innerHTML = ''; // Clear loading message
-            
-            // Generate sample data
-            const nodeCount = 50;
-            const nodes = [];
-            const links = [];
-            
-            for (let i = 0; i < nodeCount; i++) {
-                nodes.push({
-                    id: `node-${i}`,
-                    name: `Note ${i}`,
-                    val: Math.random() * 20 + 5,
-                    x: (Math.random() - 0.5) * 300,
-                    y: (Math.random() - 0.5) * 300,
-                    z: (Math.random() - 0.5) * 300
-                });
-            }
-            
-            // Create random connections
-            for (let i = 0; i < nodeCount * 1.5; i++) {
-                const source = Math.floor(Math.random() * nodeCount);
-                const target = Math.floor(Math.random() * nodeCount);
-                if (source !== target) {
-                    links.push({
-                        source: `node-${source}`,
-                        target: `node-${target}`
-                    });
-                }
-            }
-            
-            demoState.graphData = { nodes, links };
-            
-            // Initialize 3D Force Graph
-            demoState.graph = ForceGraph3D()(container)
-                .backgroundColor('#000003')
-                .nodeLabel('name')
-                .nodeColor(node => {
-                    if (node.id === demoState.sourceNode) return '#4CAF50';
-                    if (node.id === demoState.targetNode) return '#f44336';
-                    if (demoState.currentPath.includes(node.id)) return '#FFC107';
-                    if (node.id === demoState.selectedNode) return '#00ff00';
-                    return '#6366f1';
-                })
-                .nodeVal('val')
-                .linkColor(link => {
-                    if (demoState.currentPath.length > 1) {
-                        const srcId = typeof link.source === 'string' ? link.source : link.source.id;
-                        const tgtId = typeof link.target === 'string' ? link.target : link.target.id;
-                        
-                        for (let i = 0; i < demoState.currentPath.length - 1; i++) {
-                            if ((demoState.currentPath[i] === srcId && demoState.currentPath[i + 1] === tgtId) ||
-                                (demoState.currentPath[i] === tgtId && demoState.currentPath[i + 1] === srcId)) {
-                                return '#ff0000';
-                            }
-                        }
-                    }
-                    return 'rgba(255, 255, 255, 0.2)';
-                })
-                .linkWidth(link => {
-                    if (demoState.currentPath.length > 1) {
-                        const srcId = typeof link.source === 'string' ? link.source : link.source.id;
-                        const tgtId = typeof link.target === 'string' ? link.target : link.target.id;
-                        
-                        for (let i = 0; i < demoState.currentPath.length - 1; i++) {
-                            if ((demoState.currentPath[i] === srcId && demoState.currentPath[i + 1] === tgtId) ||
-                                (demoState.currentPath[i] === tgtId && demoState.currentPath[i + 1] === srcId)) {
-                                return 8;
-                            }
-                        }
-                    }
-                    return 1;
-                })
-                .linkOpacity(0.6)
-                .nodeThreeObject(node => createNodeObject(node))
-                .onNodeClick((node, event) => {
-                    demoState.selectedNode = node.id;
-                    createCircularMenu(node, event);
-                    demoState.graph.nodeThreeObject(demoState.graph.nodeThreeObject());
-                })
-                .graphData(demoState.graphData);
-            
-            // Add lighting
-            const scene = demoState.graph.scene();
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-            directionalLight.position.set(0, 10, 5);
-            scene.add(directionalLight);
-            
-            // Create UI controls
-            createUIControls();
-            
-            // Start animations
-            animateLockIndicators();
-        }
-        
-        // Initialize on load
+        // Initialize the demo using the CytoQuery module
         window.addEventListener('load', () => {
-            initializeGraph();
+            // Generate sample data
+            const graphData = window.CytoQuery.generateSampleData(500);
+            
+            // Create the graph with all the features from the module
+            const graphManager = window.CytoQuery.createDemoGraph('graph-container', graphData, {
+                bloom: {
+                    strength: 4.5,
+                    radius: 1,
+                    threshold: 0
+                },
+                nodeStyle: {
+                    size: 4,
+                    opacity: 0.75,
+                    resolution: 32
+                },
+                linkStyle: {
+                    opacity: 0.2,
+                    width: 1,
+					curvature: 0.2
+                }
+            });
+            
+            // Optional: Store reference for console debugging
+            window.demoGraph = graphManager;
         });
     </script>
 </body>

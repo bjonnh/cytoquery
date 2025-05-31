@@ -237,21 +237,24 @@ export function toggleFPSLimiter(
         
         // Simulate continuous user interaction by dispatching mouse events
         // This prevents the graph from entering idle mode (1 FPS)
-        animationState.fpsPreventionInterval = window.setInterval(() => {
-            if (animationState.isFPSLimiterDisabled) {
-                const renderer = Graph.renderer();
-                if (renderer && renderer.domElement) {
-                    // Dispatch a mousemove event to keep the graph active
-                    const event = new MouseEvent('mousemove', {
-                        bubbles: true,
-                        cancelable: true,
-                        clientX: window.innerWidth / 2 + Math.random() * 2 - 1, // Slight variation to ensure event is processed
-                        clientY: window.innerHeight / 2 + Math.random() * 2 - 1
-                    });
-                    renderer.domElement.dispatchEvent(event);
+        // Use a small delay to ensure renderer is ready
+        setTimeout(() => {
+            animationState.fpsPreventionInterval = window.setInterval(() => {
+                if (animationState.isFPSLimiterDisabled) {
+                    const renderer = Graph.renderer();
+                    if (renderer && renderer.domElement) {
+                        // Dispatch a mousemove event to keep the graph active
+                        const event = new MouseEvent('mousemove', {
+                            bubbles: true,
+                            cancelable: true,
+                            clientX: window.innerWidth / 2 + Math.random() * 2 - 1, // Slight variation to ensure event is processed
+                            clientY: window.innerHeight / 2 + Math.random() * 2 - 1
+                        });
+                        renderer.domElement.dispatchEvent(event);
+                    }
                 }
-            }
-        }, 90); // Trigger every 90ms to maintain active state
+            }, 90); // Trigger every 90ms to maintain active state
+        }, 100);
         
     } else {
         // Clear the interval and allow normal idle detection

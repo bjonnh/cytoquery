@@ -9,7 +9,9 @@
 		"postbuild": "mkdir -p build && cp manifest.json versions.json styles.css build/",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test": "vitest run",
-		"test:ui": "vitest --ui"
+		"test:ui": "vitest --ui",
+		"demo:dev": "node esbuild.demo.mjs",
+		"demo:build": "node esbuild.demo.mjs production && cp styles.css demo/"
 	},
 	"keywords": [],
 	"author": "",

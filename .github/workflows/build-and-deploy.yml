@@ -42,6 +42,9 @@ jobs:
     - name: Build plugin
       run: npm run build
     
+    - name: Build demo
+      run: npm run demo:build
+    
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -55,9 +58,9 @@ jobs:
     - name: Prepare demo files
       run: |
         mkdir -p demo-dist
-        # Copy from build directory
-        cp build/main.js demo-dist/
-        cp build/styles.css demo-dist/
+        # Copy demo files
+        cp demo/cytoquery-demo.js demo-dist/
+        cp demo/styles.css demo-dist/
         cp demo/index.html demo-dist/
     
     - name: Upload demo artifacts

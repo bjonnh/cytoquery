@@ -61,7 +61,7 @@ export function createGraph(
                 for (let i = 0; i < uiState.currentPath.length - 1; i++) {
                     if ((uiState.currentPath[i] === srcId && uiState.currentPath[i + 1] === tgtId) ||
                         (uiState.currentPath[i] === tgtId && uiState.currentPath[i + 1] === srcId)) {
-                        return 32; // Much thicker for path links (32x wider)
+                        return (currentParams.linkStyle?.width || 1) * 8; // 8x thicker for path links
                     }
                 }
             }
