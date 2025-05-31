@@ -55,7 +55,9 @@ jobs:
     - name: Prepare demo files
       run: |
         mkdir -p demo-dist
+        # main.js is in root after build
         cp main.js demo-dist/
+        # styles.css is in both root and build/
         cp styles.css demo-dist/
         cp demo/index.html demo-dist/
     
