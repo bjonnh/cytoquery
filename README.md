@@ -55,16 +55,16 @@ point, especially for the whole graph management part, path finding etc.
 
 Create a 3D graph of your vault by adding a code block:
 
-```markdown
+````markdown
 ```cytoquery
 ```
-```
+````
 
 ### Advanced Configuration
 
 Customize the graph appearance and behavior with parameters:
 
-```markdown
+````markdown
 ```cytoquery
 nodeStyle.size: 6
 nodeStyle.opacity: 0.8
@@ -72,13 +72,13 @@ linkStyle.opacity: 0.3
 bloom.strength: 5.0
 force.alphaDecay: 0.02
 ```
-```
+````
 
 ### Query Language
 
 Filter and style nodes using condition-action rules:
 
-```markdown
+````markdown
 ```cytoquery
 default => color(#4a4a4a)
 default => shape(sphere)
@@ -88,9 +88,10 @@ tag("important") => size(2)
 link_to("index") => color(gold)
 link_to("index") => shape(dodecahedron)
 ```
-```
+````
 
 #### Available Conditions
+
 - `default` - Matches all nodes
 - `tag("tagname")` - Matches nodes with specific tags
 - `link_to("text")` - Matches nodes linking to pages containing text
