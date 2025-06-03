@@ -90,6 +90,20 @@ function createAxisMappingSection(
         select.className = 'axis-select';
         select.onchange = () => {
             const value = select.value === '' ? null : select.value;
+            
+            // Check if this axis is already mapped to another dimension
+            if (value !== null) {
+                const mappings = ['x', 'y', 'z'] as const;
+                for (const dim of mappings) {
+                    if (dim !== dimension && manager.axisMapping[`${dim}Axis`] === value) {
+                        alert(`This axis is already mapped to the ${dim.toUpperCase()} dimension. Please select a different axis.`);
+                        // Reset to previous value
+                        select.value = manager.axisMapping[`${dimension}Axis`] || '';
+                        return;
+                    }
+                }
+            }
+            
             updateAxisMapping(manager, dimension, value);
             callbacks.onAxisMappingChanged(dimension, value);
         };

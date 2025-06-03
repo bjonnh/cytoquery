@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AxisIndicatorSystem } from './axis-indicator';
 
 export interface AnimationState {
     nodeObjects: Map<string, THREE.Group>;
@@ -8,6 +9,7 @@ export interface AnimationState {
     idlePreventionInterval: number | null;
     isFPSLimiterDisabled: boolean;
     fpsPreventionInterval: number | null;
+    axisIndicatorSystem?: AxisIndicatorSystem;
 }
 
 export function createAnimationLoop(
@@ -144,6 +146,12 @@ export function createAnimationLoop(
             
             // Reset rotation start time to current time for next frame
             animationState.rotationStartTime = currentTime;
+        }
+        
+        // Update axis indicator if available
+        if (animationState.axisIndicatorSystem && Graph.camera) {
+            const { updateAxisIndicator } = require('./axis-indicator');
+            updateAxisIndicator(animationState.axisIndicatorSystem, Graph.camera());
         }
         
         requestAnimationFrame(animate);

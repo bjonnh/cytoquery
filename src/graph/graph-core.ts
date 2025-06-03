@@ -24,9 +24,12 @@ import { createSettingsControls, SettingsCallbacks } from './settings-panel';
 import { 
     createHyperdimensionManager, 
     deserializeHyperdimensionData,
-    serializeHyperdimensionData
+    serializeHyperdimensionData,
+    setNodePosition,
+    removeNodePositions
 } from './hyperdimension-manager';
 import { createHyperdimensionPanel, HyperdimensionUICallbacks } from './hyperdimension-ui';
+import { createAxisIndicatorSystem, disposeAxisIndicator } from './axis-indicator';
 
 // Interface for platform-specific implementations
 export interface GraphPlatformAdapter {
@@ -197,16 +200,53 @@ export function initGraph(
                         delete currentNode.fx;
                         delete currentNode.fy;
                         delete currentNode.fz;
+                        
+                        // Remove hyperdimension positions
+                        if (uiState.hyperdimensionManager) {
+                            removeNodePositions(uiState.hyperdimensionManager, nodeId);
+                            // Update UI if panel is open
+                            if (hyperdimensionPanel) {
+                                hyperdimensionPanel.updateUI();
+                            }
+                        }
                     } else {
                         // Lock the node at its current position
                         uiState.lockedNodes.add(nodeId);
                         currentNode.fx = currentNode.x;
                         currentNode.fy = currentNode.y;
                         currentNode.fz = currentNode.z;
+                        
+                        // Update hyperdimension positions if available
+                        if (uiState.hyperdimensionManager) {
+                            const manager = uiState.hyperdimensionManager;
+                            
+                            // Update positions for currently mapped axes
+                            if (manager.axisMapping.xAxis) {
+                                setNodePosition(manager, nodeId, manager.axisMapping.xAxis, currentNode.x);
+                            }
+                            if (manager.axisMapping.yAxis) {
+                                setNodePosition(manager, nodeId, manager.axisMapping.yAxis, currentNode.y);
+                            }
+                            if (manager.axisMapping.zAxis) {
+                                setNodePosition(manager, nodeId, manager.axisMapping.zAxis, currentNode.z);
+                            }
+                            
+                            // Update UI if panel is open
+                            if (hyperdimensionPanel) {
+                                hyperdimensionPanel.updateUI();
+                            }
+                        }
                     }
                     
                     // Update unlock all button visibility
                     uiElements.buttons.unlockAll.style.display = uiState.lockedNodes.size > 0 ? 'flex' : 'none';
+                    
+                    // Mark as unsaved
+                    hasUnsavedChanges = true;
+                    if (platformAdapter.saveParameters) {
+                        uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                        uiElements.buttons.save.innerHTML = '💾*';
+                    }
                     
                     // Force re-render to update lock indicators
                     Graph.nodeThreeObject(Graph.nodeThreeObject());
@@ -318,8 +358,49 @@ export function initGraph(
         menuState
     );
 
+    // Add node drag handlers for hyperdimension sync
+    if (uiState.hyperdimensionManager) {
+        Graph.onNodeDragEnd((node: any) => {
+            // Update hyperdimension positions based on current axis mapping
+            const manager = uiState.hyperdimensionManager!;
+            
+            // Only update if node has been moved (has fx, fy, fz)
+            if (node.fx !== undefined || node.fy !== undefined || node.fz !== undefined) {
+                // Update X axis position if mapped
+                if (manager.axisMapping.xAxis && node.fx !== undefined) {
+                    setNodePosition(manager, node.id, manager.axisMapping.xAxis, node.fx);
+                }
+                
+                // Update Y axis position if mapped
+                if (manager.axisMapping.yAxis && node.fy !== undefined) {
+                    setNodePosition(manager, node.id, manager.axisMapping.yAxis, node.fy);
+                }
+                
+                // Update Z axis position if mapped
+                if (manager.axisMapping.zAxis && node.fz !== undefined) {
+                    setNodePosition(manager, node.id, manager.axisMapping.zAxis, node.fz);
+                }
+                
+                // Mark as unsaved
+                hasUnsavedChanges = true;
+                if (platformAdapter.saveParameters) {
+                    uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                    uiElements.buttons.save.innerHTML = '💾*';
+                }
+                
+                // Update UI if panel is open
+                if (hyperdimensionPanel) {
+                    hyperdimensionPanel.updateUI();
+                }
+            }
+        });
+    }
+
     // Add bloom pass
     const bloomPass = addBloomPass(Graph, graphContainer, parameters);
+
+    // Create axis indicator system (separate renderer for overlay)
+    const axisIndicatorSystem = createAxisIndicatorSystem(container);
 
     // Apply locked nodes from parameters
     applyLockedNodes(Graph, parameters, uiState.lockedNodes);
@@ -337,7 +418,8 @@ export function initGraph(
         rotationSpeed: 0.3,
         idlePreventionInterval: null,
         isFPSLimiterDisabled: false,
-        fpsPreventionInterval: null
+        fpsPreventionInterval: null,
+        axisIndicatorSystem: axisIndicatorSystem
     };
 
     // Update node object tracking in the graph renderer
@@ -383,6 +465,34 @@ export function initGraph(
                 Graph.enableNavigationControls();
             }, 500);
         },
+        onResetOrientation: () => {
+            // Get current camera distance from origin
+            const camera = Graph.camera();
+            const currentDistance = camera.position.length();
+            
+            // Set camera to standard viewing angle (looking from front-top-right)
+            // X: left-right, Y: up-down, Z: front-back
+            const angle = Math.PI / 4; // 45 degrees
+            const elevation = Math.PI / 6; // 30 degrees
+            
+            const newPosition = {
+                x: currentDistance * Math.cos(angle) * Math.cos(elevation),
+                y: currentDistance * Math.sin(elevation),
+                z: currentDistance * Math.sin(angle) * Math.cos(elevation)
+            };
+            
+            // Animate camera to new position, looking at origin
+            Graph.cameraPosition(
+                newPosition,
+                { x: 0, y: 0, z: 0 }, // Look at origin
+                1000 // 1 second animation
+            );
+            
+            // Re-enable controls after animation
+            setTimeout(() => {
+                Graph.enableNavigationControls();
+            }, 1100);
+        },
         onUnlockAll: () => {
             const graphData = Graph.graphData();
             graphData.nodes.forEach((node: any) => {
@@ -391,9 +501,27 @@ export function initGraph(
                     delete node.fx;
                     delete node.fy;
                     delete node.fz;
+                    
+                    // Remove hyperdimension positions
+                    if (uiState.hyperdimensionManager) {
+                        removeNodePositions(uiState.hyperdimensionManager, node.id);
+                    }
                 }
             });
+            
+            // Update UI if panel is open
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+            
             uiElements.buttons.unlockAll.style.display = uiState.lockedNodes.size > 0 ? 'flex' : 'none';
+            
+            // Mark as unsaved
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
             
             // Force re-render to update lock indicators
             Graph.nodeThreeObject(Graph.nodeThreeObject());
@@ -687,6 +815,9 @@ export function initGraph(
     const graphInstance = Object.assign(Graph, {
         _cleanup: () => {
             resizeObserver.disconnect();
+            if (axisIndicatorSystem) {
+                disposeAxisIndicator(axisIndicatorSystem);
+            }
             if (Graph._destructor) {
                 Graph._destructor();
             }

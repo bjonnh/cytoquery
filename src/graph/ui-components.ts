@@ -2,6 +2,7 @@ import { GraphParameters } from '../types/graph';
 
 export interface UICallbacks {
     onResetView: () => void;
+    onResetOrientation: () => void;
     onUnlockAll: () => void;
     onFindDirectedPath: () => void;
     onFindUndirectedPath: () => void;
@@ -15,6 +16,7 @@ export interface UICallbacks {
 export function createUIControls(container: HTMLElement, callbacks: UICallbacks): {
     buttons: {
         resetView: HTMLButtonElement;
+        resetOrientation: HTMLButtonElement;
         unlockAll: HTMLButtonElement;
         directedPath: HTMLButtonElement;
         undirectedPath: HTMLButtonElement;
@@ -42,6 +44,14 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     resetViewButton.className = 'graph-control-button reset-view';
     resetViewButton.onclick = callbacks.onResetView;
     topButtonsContainer.appendChild(resetViewButton);
+    
+    // Create reset orientation button
+    const resetOrientationButton = document.createElement('button');
+    resetOrientationButton.innerHTML = '🧭';
+    resetOrientationButton.title = 'Reset Camera Orientation (Standard XYZ)';
+    resetOrientationButton.className = 'graph-control-button reset-orientation';
+    resetOrientationButton.onclick = callbacks.onResetOrientation;
+    topButtonsContainer.appendChild(resetOrientationButton);
 
     // Create unlock all button
     const unlockAllButton = document.createElement('button');
@@ -120,6 +130,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     return {
         buttons: {
             resetView: resetViewButton,
+            resetOrientation: resetOrientationButton,
             unlockAll: unlockAllButton,
             directedPath: directedPathButton,
             undirectedPath: undirectedPathButton,

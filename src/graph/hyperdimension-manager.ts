@@ -338,3 +338,13 @@ export function validateAxisMapping(manager: HyperdimensionManager): void {
         manager.axisMapping.zAxis = null;
     }
 }
+
+/**
+ * Removes all position data for a node (used when unlocking)
+ */
+export function removeNodePositions(
+    manager: HyperdimensionManager,
+    nodeId: string
+): void {
+    manager.nodePositions.delete(nodeId);
+}
