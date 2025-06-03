@@ -6,6 +6,7 @@ import {
     createGraph,
     addBloomPass,
     applyLockedNodes,
+    applyHyperdimensionPositions,
     GraphUIState,
     GraphCallbacks
 } from './graph-renderer';
@@ -20,6 +21,12 @@ import { findPath, restrictToNode } from './path-finding';
 import { createUIControls, createParsingErrorDisplay, UICallbacks } from './ui-components';
 import { createCircularMenu, CircularMenuCallbacks, CircularMenuState } from './circular-menu';
 import { createSettingsControls, SettingsCallbacks } from './settings-panel';
+import { 
+    createHyperdimensionManager, 
+    deserializeHyperdimensionData,
+    serializeHyperdimensionData
+} from './hyperdimension-manager';
+import { createHyperdimensionPanel, HyperdimensionUICallbacks } from './hyperdimension-ui';
 
 // Interface for platform-specific implementations
 export interface GraphPlatformAdapter {
@@ -80,13 +87,22 @@ export function initGraph(
         createParsingErrorDisplay(container, parseErrors);
     }
 
+    // Initialize hyperdimension manager
+    let hyperdimensionManager;
+    if (parameters.hyperdimensions) {
+        hyperdimensionManager = deserializeHyperdimensionData(parameters.hyperdimensions);
+    } else {
+        hyperdimensionManager = createHyperdimensionManager();
+    }
+
     // Initialize UI state
     const uiState: GraphUIState = {
         selectedNode: null,
         sourceNode: null,
         targetNode: null,
         currentPath: [],
-        lockedNodes: new Set<string>()
+        lockedNodes: new Set<string>(),
+        hyperdimensionManager
     };
 
     // Track current parameter values for dynamic functions
@@ -124,7 +140,8 @@ export function initGraph(
             warmupTicks: parameters.performance?.warmupTicks || 0,
             cooldownTicks: parameters.performance?.cooldownTicks || Infinity,
             cooldownTime: parameters.performance?.cooldownTime || 10000
-        }
+        },
+        hyperdimensions: undefined // Will be updated before saving
     };
 
     // Track menu state
@@ -132,7 +149,8 @@ export function initGraph(
         currentRestriction: null,
         publicMode: platformAdapter.publicMode,
         sourceNode: uiState.sourceNode,
-        targetNode: uiState.targetNode
+        targetNode: uiState.targetNode,
+        hyperdimensionManager: uiState.hyperdimensionManager
     };
 
     // Create menu cleanup
@@ -305,6 +323,11 @@ export function initGraph(
 
     // Apply locked nodes from parameters
     applyLockedNodes(Graph, parameters, uiState.lockedNodes);
+    
+    // Apply hyperdimension positions if available
+    if (uiState.hyperdimensionManager) {
+        applyHyperdimensionPositions(Graph, uiState.hyperdimensionManager, uiState.lockedNodes);
+    }
 
     // Initialize animation state
     const animationState: AnimationState = {
@@ -412,6 +435,11 @@ export function initGraph(
                     return null;
                 }).filter(n => n !== null);
 
+                // Update hyperdimensions in currentParams before saving
+                if (uiState.hyperdimensionManager) {
+                    currentParams.hyperdimensions = serializeHyperdimensionData(uiState.hyperdimensionManager);
+                }
+
                 const saved = platformAdapter.saveParameters(currentParams, lockedNodesData);
                 if (saved) {
                     hasUnsavedChanges = false;
@@ -476,6 +504,100 @@ export function initGraph(
     const uiElements = createUIControls(container, uiCallbacks);
     setupIdleRotationButton();
     setupFPSLimiterButton();
+    
+    // Create hyperdimension panel
+    let hyperdimensionPanel: { panel: HTMLDivElement; updateUI: () => void } | null = null;
+    
+    // Define callbacks that will update the panel when it exists
+    const hyperdimensionCallbacks: HyperdimensionUICallbacks = {
+        onSpatialSystemCreated: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Update the UI to ensure new system appears
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+        },
+        onSpatialSystemDeleted: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Update the UI to ensure deleted system is removed from dropdowns
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+        },
+        onAxisCreated: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Update the UI to ensure new axis appears in dropdowns
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+        },
+        onAxisDeleted: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Update the UI to ensure deleted axis is removed from dropdowns
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+        },
+        onAxisMappingChanged: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Re-apply positions with new mapping
+            if (uiState.hyperdimensionManager) {
+                applyHyperdimensionPositions(Graph, uiState.hyperdimensionManager, uiState.lockedNodes);
+            }
+        },
+        onNodePositionChanged: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Re-apply positions
+            if (uiState.hyperdimensionManager) {
+                applyHyperdimensionPositions(Graph, uiState.hyperdimensionManager, uiState.lockedNodes);
+            }
+        }
+    };
+    
+    if (uiState.hyperdimensionManager) {
+        // Create hyperdimension button
+        const hyperdimensionButton = document.createElement('button');
+        hyperdimensionButton.innerHTML = '📐';
+        hyperdimensionButton.title = 'Toggle Hyperdimension Panel';
+        hyperdimensionButton.className = 'graph-control-button hyperdimension';
+        hyperdimensionButton.onclick = () => {
+            if (!hyperdimensionPanel) {
+                hyperdimensionPanel = createHyperdimensionPanel(
+                    container,
+                    uiState.hyperdimensionManager!,
+                    hyperdimensionCallbacks
+                );
+            }
+            
+            hyperdimensionPanel.panel.classList.toggle('open');
+            hyperdimensionButton.classList.toggle('active');
+        };
+        uiElements.containers.topButtons.appendChild(hyperdimensionButton);
+    }
 
     // Update unlock all button visibility based on initial locked nodes
     if (parameters.lockedNodes && parameters.lockedNodes.length > 0) {

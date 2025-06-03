@@ -8,11 +8,15 @@ export interface CircularMenuCallbacks {
     onSetAsTarget: (nodeId: string) => void;
 }
 
+import { HyperdimensionManager } from '../types/hyperdimensions';
+import { createNodePositionEditor, HyperdimensionUICallbacks } from './hyperdimension-ui';
+
 export interface CircularMenuState {
     currentRestriction: { nodeId: string, depth: number } | null;
     publicMode: boolean;
     sourceNode: string | null;
     targetNode: string | null;
+    hyperdimensionManager?: HyperdimensionManager;
 }
 
 interface MenuItem {
@@ -180,6 +184,17 @@ export function createCircularMenu(
             }
         }
     ];
+    
+    // Add hyperdimension positions item if manager exists
+    if (state.hyperdimensionManager) {
+        menuItems.splice(2, 0, {
+            icon: '📐',
+            label: 'Edit positions',
+            action: () => {
+                showPositionsDialog();
+            }
+        });
+    }
 
     // Add "Remove restrictions" if there's a current restriction
     if (state.currentRestriction) {
@@ -528,6 +543,78 @@ export function createCircularMenu(
         
         // Make dialog draggable
         const cleanupDrag = makeDraggable(dialog, title);
+        
+        // Store cleanup function on dialog for later use
+        (dialog as any).cleanupDrag = cleanupDrag;
+    }
+
+    // Function to show hyperdimension positions dialog
+    function showPositionsDialog() {
+        if (!state.hyperdimensionManager) return;
+        
+        const dialog = document.createElement('div');
+        dialog.className = 'circular-menu-dialog';
+        dialog.style.cssText = `
+            position: absolute;
+            left: -200px;
+            top: -200px;
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            min-width: 350px;
+            max-width: 400px;
+            max-height: 500px;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+            user-select: none;
+            animation: circularMenuItemAppear 0.3s ease-out forwards;
+        `;
+        
+        const hyperdimensionCallbacks: HyperdimensionUICallbacks = {
+            onSpatialSystemCreated: () => {},
+            onSpatialSystemDeleted: () => {},
+            onAxisCreated: () => {},
+            onAxisDeleted: () => {},
+            onAxisMappingChanged: () => {},
+            onNodePositionChanged: () => {
+                // Position changed, will be handled when dialog closes
+            }
+        };
+        
+        const positionEditor = createNodePositionEditor(
+            node.id,
+            node.name,
+            state.hyperdimensionManager,
+            hyperdimensionCallbacks
+        );
+        dialog.appendChild(positionEditor);
+        
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = 'display: flex; gap: 8px; margin-top: 16px;';
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Close';
+        closeBtn.style.cssText = `
+            flex: 1;
+            padding: 8px;
+            background: rgba(100, 100, 100, 0.3);
+            border: 1px solid rgba(100, 100, 100, 0.5);
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        `;
+        closeBtn.onclick = () => {
+            closeMenu();
+        };
+        
+        buttonContainer.appendChild(closeBtn);
+        dialog.appendChild(buttonContainer);
+        
+        menu.appendChild(dialog);
+        
+        // Make dialog draggable
+        const cleanupDrag = makeDraggable(dialog, positionEditor.querySelector('h4') as HTMLElement);
         
         // Store cleanup function on dialog for later use
         (dialog as any).cleanupDrag = cleanupDrag;

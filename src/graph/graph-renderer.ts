@@ -2,6 +2,8 @@ import ForceGraph3D from "../lib/3d-force-graph";
 import * as THREE from "three";
 import { UnrealBloomPass } from '../lib/UnrealBloomPass';
 import { GraphParameters, GraphData, GraphNode } from '../types/graph';
+import { HyperdimensionManager } from '../types/hyperdimensions';
+import { getNode3DPosition } from './hyperdimension-manager';
 
 export interface GraphInstance {
     graph: any;
@@ -18,6 +20,7 @@ export interface GraphUIState {
     targetNode: string | null;
     currentPath: string[];
     lockedNodes: Set<string>;
+    hyperdimensionManager?: HyperdimensionManager;
 }
 
 export function createGraph(
@@ -414,4 +417,57 @@ export function applyLockedNodes(Graph: any, parameters: GraphParameters, locked
             }
         }, 1000);
     }
+}
+
+/**
+ * Applies hyperdimension positions to nodes based on current axis mapping
+ */
+export function applyHyperdimensionPositions(
+    Graph: any,
+    hyperdimensionManager: HyperdimensionManager,
+    lockedNodes: Set<string>
+): void {
+    // Apply positions after a short delay to ensure graph is initialized
+    setTimeout(() => {
+        const nodes = Graph.graphData().nodes;
+        let hasLockedNodes = false;
+        
+        nodes.forEach((node: any) => {
+            const position = getNode3DPosition(hyperdimensionManager, node.id);
+            
+            // Only lock dimensions that have positions
+            if (position.x !== null) {
+                node.fx = position.x;
+                hasLockedNodes = true;
+            } else {
+                node.fx = undefined; // Unlock if no position
+            }
+            
+            if (position.y !== null) {
+                node.fy = position.y;
+                hasLockedNodes = true;
+            } else {
+                node.fy = undefined;
+            }
+            
+            if (position.z !== null) {
+                node.fz = position.z;
+                hasLockedNodes = true;
+            } else {
+                node.fz = undefined;
+            }
+            
+            // Track nodes that have any locked dimension
+            if (position.x !== null || position.y !== null || position.z !== null) {
+                lockedNodes.add(String(node.id));
+            } else {
+                lockedNodes.delete(String(node.id));
+            }
+        });
+        
+        // Force a re-render to show lock indicators if any nodes are locked
+        if (hasLockedNodes) {
+            Graph.nodeThreeObject(Graph.nodeThreeObject());
+        }
+    }, 1000);
 }

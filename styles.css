@@ -17,9 +17,27 @@ If your plugin does not need CSS, delete this file.
 	position: relative;
 }
 
+/* Top Button Container */
+.graph-top-buttons {
+	position: absolute;
+	top: 16px;
+	left: 0;
+	right: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 8px;
+	z-index: 1000;
+	pointer-events: none;
+}
+
+.graph-top-buttons > * {
+	pointer-events: auto;
+}
+
 /* UI Control Buttons */
 .graph-control-button {
-	position: absolute;
+	position: relative;
 	width: 36px;
 	height: 36px;
 	background: rgba(0, 0, 0, 0.7);
@@ -28,7 +46,6 @@ If your plugin does not need CSS, delete this file.
 	color: white;
 	font-size: 18px;
 	cursor: pointer;
-	z-index: 1000;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -39,47 +56,39 @@ If your plugin does not need CSS, delete this file.
 	background: rgba(0, 0, 0, 0.8);
 }
 
-.graph-control-button.reset-view {
+.graph-control-button.active {
+	background: rgba(100, 200, 100, 0.5);
+}
+
+/* Menu button stays in top-right corner */
+.graph-control-button.menu {
+	position: absolute;
 	top: 16px;
-	left: 16px;
+	right: 16px;
+	z-index: 1000;
+	font-size: 20px;
+}
+
+.graph-control-button.reset-view {
 	font-size: 20px;
 }
 
 .graph-control-button.unlock-all {
-	top: 16px;
-	left: 58px;
-	display: none;
+	display: flex;
 }
 
-.graph-control-button.save-params {
-	top: 16px;
-	left: 222px;
-}
-
-.graph-control-button.idle-rotation {
-	top: 16px;
-	left: 264px;
-}
-
-.graph-control-button.fps-limiter {
-	top: 16px;
-	left: 306px;
-}
-
-.graph-control-button.menu {
-	top: 16px;
-	right: 16px;
-	font-size: 20px;
+.graph-control-button.unlock-all[style*="display: none"] {
+	display: none !important;
 }
 
 /* Path Buttons */
 .path-buttons-container {
-	position: absolute;
-	top: 16px;
-	left: 100px;
-	display: none;
+	display: flex;
 	gap: 4px;
-	z-index: 1000;
+}
+
+.path-buttons-container[style*="display: none"] {
+	display: none !important;
 }
 
 .path-button {
@@ -102,9 +111,6 @@ If your plugin does not need CSS, delete this file.
 }
 
 .clear-path-button {
-	position: absolute;
-	top: 16px;
-	left: 180px;
 	width: 36px;
 	height: 36px;
 	background: rgba(200, 100, 100, 0.3);
@@ -113,11 +119,14 @@ If your plugin does not need CSS, delete this file.
 	color: white;
 	font-size: 18px;
 	cursor: pointer;
-	z-index: 1000;
-	display: none;
+	display: flex;
 	align-items: center;
 	justify-content: center;
 	transition: background 0.2s;
+}
+
+.clear-path-button[style*="display: none"] {
+	display: none !important;
 }
 
 .clear-path-button:hover {
@@ -239,4 +248,343 @@ If your plugin does not need CSS, delete this file.
 
 .circular-menu-dialog button:hover {
 	filter: brightness(1.2);
+}
+
+/* Hyperdimension Panel Styles */
+.hyperdimension-panel {
+	position: absolute;
+	top: 0;
+	left: -350px;
+	width: 330px;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.9);
+	border-right: 1px solid rgba(255, 255, 255, 0.2);
+	color: white;
+	padding: 20px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	transition: left 0.3s ease;
+	z-index: 999;
+	font-family: sans-serif;
+	font-size: 12px;
+	box-sizing: border-box;
+}
+
+.hyperdimension-panel.open {
+	left: 0;
+}
+
+.hyperdimension-header h3 {
+	margin: 0 0 20px 0;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+/* Axis Mapping Section */
+.axis-mapping-section {
+	margin-bottom: 30px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.axis-mapping-section h4 {
+	margin: 0 0 15px 0;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.axis-mapping-container {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.axis-selector {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.axis-selector label {
+	width: 50px;
+	font-size: 12px;
+}
+
+.axis-select {
+	flex: 1;
+	padding: 6px 10px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 4px;
+	color: white;
+	font-size: 12px;
+}
+
+.axis-select option,
+.axis-select optgroup {
+	background: #333;
+}
+
+/* Spatial Systems Section */
+.spatial-systems-section h4 {
+	margin: 0 0 15px 0;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.section-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 15px;
+}
+
+.add-spatial-system-btn {
+	padding: 6px 12px;
+	background: rgba(100, 200, 100, 0.3);
+	border: 1px solid rgba(100, 200, 100, 0.5);
+	border-radius: 4px;
+	color: white;
+	font-size: 12px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.add-spatial-system-btn:hover {
+	background: rgba(100, 200, 100, 0.4);
+}
+
+.spatial-systems-list {
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+}
+
+.spatial-system {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	padding: 12px;
+}
+
+.system-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 10px;
+}
+
+.system-name {
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.system-controls {
+	display: flex;
+	gap: 8px;
+}
+
+.small-button {
+	padding: 4px 8px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 4px;
+	color: white;
+	font-size: 11px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.small-button:hover {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.small-button.delete {
+	background: rgba(200, 100, 100, 0.3);
+	border-color: rgba(200, 100, 100, 0.5);
+}
+
+.small-button.delete:hover {
+	background: rgba(200, 100, 100, 0.4);
+}
+
+.axes-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.axis-item {
+	display: flex;
+	align-items: center;
+	padding: 6px 8px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 4px;
+}
+
+.axis-name {
+	flex: 1;
+	font-size: 12px;
+}
+
+.axis-bounds {
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.6);
+	margin: 0 8px;
+}
+
+.empty-message,
+.empty-axes {
+	font-size: 12px;
+	color: rgba(255, 255, 255, 0.5);
+	font-style: italic;
+	text-align: center;
+	padding: 20px;
+}
+
+/* Node Position Editor */
+.node-position-editor {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	padding: 15px;
+	margin-top: 15px;
+}
+
+.node-position-editor h4 {
+	margin: 0 0 15px 0;
+	font-size: 14px;
+}
+
+.node-positions-container {
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+}
+
+.position-system-section h5 {
+	margin: 0 0 10px 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.position-input-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.position-input-row label {
+	width: 80px;
+	font-size: 12px;
+}
+
+.position-input {
+	flex: 1;
+	padding: 4px 8px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 4px;
+	color: white;
+	font-size: 12px;
+}
+
+.unlock-axis-btn {
+	padding: 4px 8px;
+	background: transparent;
+	border: none;
+	color: rgba(255, 255, 255, 0.6);
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.unlock-axis-btn:hover {
+	color: white;
+}
+
+/* Dialog Styles */
+.hyperdimension-dialog-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.7);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1003;
+}
+
+.hyperdimension-dialog {
+	background: #333;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 8px;
+	padding: 20px;
+	min-width: 300px;
+	max-width: 500px;
+	color: white;
+}
+
+.hyperdimension-dialog h3 {
+	margin: 0 0 20px 0;
+	font-size: 16px;
+}
+
+.dialog-form {
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+}
+
+.form-field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.form-field label {
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.form-field input {
+	padding: 8px 12px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 4px;
+	color: white;
+	font-size: 12px;
+}
+
+.dialog-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 10px;
+}
+
+.dialog-buttons button {
+	padding: 8px 16px;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 4px;
+	color: white;
+	font-size: 12px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.dialog-buttons button[type="submit"] {
+	background: rgba(100, 200, 100, 0.3);
+	border-color: rgba(100, 200, 100, 0.5);
+}
+
+.dialog-buttons button:hover {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.dialog-buttons button[type="submit"]:hover {
+	background: rgba(100, 200, 100, 0.4);
 }

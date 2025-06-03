@@ -60,3 +60,23 @@
   - Tag nodes are connected to all pages that use them
   - Supports both inline tags (#tag) and frontmatter tags
   - Case-insensitive matching for tags and node names
+- Hyperdimensional Node Positioning:
+  - Define custom spatial systems (e.g., "Time", "Geography", "Concepts")
+  - Create axes within spatial systems with optional min/max bounds
+  - Map any axis to the 3D graph's X, Y, or Z dimensions
+  - Position nodes independently on each axis (nodes can be locked in some dimensions while free in others)
+  - UI panel (📐) for managing spatial systems and axes:
+    - Create/delete spatial systems and axes
+    - Real-time axis mapping selectors
+    - Visual organization by spatial system
+  - Node position editor in circular menu:
+    - Edit positions for all defined axes
+    - Unlock nodes in specific dimensions
+    - Respects axis bounds when setting values
+  - Full persistence of hyperdimension data in code blocks
+  - Backward compatible with legacy locked nodes system
+- Centered Top Button Layout:
+  - All control buttons are now centered at the top of the graph view
+  - Responsive flexbox layout that maintains center alignment
+  - Menu button remains in the top-right corner for consistency
+  - Clean, organized appearance with consistent spacing between buttons
