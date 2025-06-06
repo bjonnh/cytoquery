@@ -1,6 +1,6 @@
 import { createToken, Lexer, CstParser, IToken } from 'chevrotain';
 import { CachedMetadata } from 'obsidian';
-import { Node, EdgeSet } from '../utils';
+import { Node, EdgeSet } from '../utils/index';
 
 // Define tokens
 const NamedParameter = createToken({ name: "NamedParameter", pattern: /:[a-zA-Z_]\w*/ });

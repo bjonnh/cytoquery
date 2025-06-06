@@ -2,6 +2,7 @@ import { GraphParameters } from '../types/graph';
 
 export interface UICallbacks {
     onResetView: () => void;
+    onResetOrientation: () => void;
     onUnlockAll: () => void;
     onFindDirectedPath: () => void;
     onFindUndirectedPath: () => void;
@@ -15,6 +16,7 @@ export interface UICallbacks {
 export function createUIControls(container: HTMLElement, callbacks: UICallbacks): {
     buttons: {
         resetView: HTMLButtonElement;
+        resetOrientation: HTMLButtonElement;
         unlockAll: HTMLButtonElement;
         directedPath: HTMLButtonElement;
         undirectedPath: HTMLButtonElement;
@@ -25,25 +27,39 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
         menu: HTMLButtonElement;
     };
     containers: {
+        topButtons: HTMLDivElement;
         pathButtons: HTMLDivElement;
         settingsPanel: HTMLDivElement;
     };
 } {
-    // Create reset view button (top left)
+    // Create top button container
+    const topButtonsContainer = document.createElement('div');
+    topButtonsContainer.className = 'graph-top-buttons';
+    container.appendChild(topButtonsContainer);
+
+    // Create reset view button
     const resetViewButton = document.createElement('button');
     resetViewButton.innerHTML = '⟲';
     resetViewButton.title = 'Reset View to Center';
     resetViewButton.className = 'graph-control-button reset-view';
     resetViewButton.onclick = callbacks.onResetView;
-    container.appendChild(resetViewButton);
+    topButtonsContainer.appendChild(resetViewButton);
+    
+    // Create reset orientation button
+    const resetOrientationButton = document.createElement('button');
+    resetOrientationButton.innerHTML = '🧭';
+    resetOrientationButton.title = 'Reset Camera Orientation (Standard XYZ)';
+    resetOrientationButton.className = 'graph-control-button reset-orientation';
+    resetOrientationButton.onclick = callbacks.onResetOrientation;
+    topButtonsContainer.appendChild(resetOrientationButton);
 
-    // Create unlock all button (next to reset view)
+    // Create unlock all button
     const unlockAllButton = document.createElement('button');
     unlockAllButton.innerHTML = '🔓';
     unlockAllButton.title = 'Unlock All Nodes';
     unlockAllButton.className = 'graph-control-button unlock-all';
     unlockAllButton.onclick = callbacks.onUnlockAll;
-    container.appendChild(unlockAllButton);
+    topButtonsContainer.appendChild(unlockAllButton);
 
     // Create find path buttons container
     const pathButtonsContainer = document.createElement('div');
@@ -65,7 +81,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     undirectedPathButton.onclick = callbacks.onFindUndirectedPath;
     pathButtonsContainer.appendChild(undirectedPathButton);
     
-    container.appendChild(pathButtonsContainer);
+    topButtonsContainer.appendChild(pathButtonsContainer);
 
     // Create clear path button
     const clearPathButton = document.createElement('button');
@@ -73,7 +89,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     clearPathButton.title = 'Clear Path';
     clearPathButton.className = 'clear-path-button';
     clearPathButton.onclick = callbacks.onClearPath;
-    container.appendChild(clearPathButton);
+    topButtonsContainer.appendChild(clearPathButton);
 
     // Create save parameters button
     const saveButton = document.createElement('button');
@@ -81,7 +97,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     saveButton.title = 'Save Parameters to Code Block';
     saveButton.className = 'graph-control-button save-params';
     saveButton.onclick = callbacks.onSaveParameters;
-    container.appendChild(saveButton);
+    topButtonsContainer.appendChild(saveButton);
 
     // Create idle rotation button
     const idleRotationButton = document.createElement('button');
@@ -89,7 +105,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     idleRotationButton.title = 'Toggle Idle Rotation Mode';
     idleRotationButton.className = 'graph-control-button idle-rotation';
     idleRotationButton.onclick = callbacks.onToggleIdleRotation;
-    container.appendChild(idleRotationButton);
+    topButtonsContainer.appendChild(idleRotationButton);
 
     // Create FPS limiter toggle button
     const fpsLimiterButton = document.createElement('button');
@@ -97,7 +113,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     fpsLimiterButton.title = 'Toggle FPS Limiter (60 FPS when disabled)';
     fpsLimiterButton.className = 'graph-control-button fps-limiter';
     fpsLimiterButton.onclick = callbacks.onToggleFPSLimiter;
-    container.appendChild(fpsLimiterButton);
+    topButtonsContainer.appendChild(fpsLimiterButton);
 
     // Create hamburger menu button
     const menuButton = document.createElement('button');
@@ -114,6 +130,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
     return {
         buttons: {
             resetView: resetViewButton,
+            resetOrientation: resetOrientationButton,
             unlockAll: unlockAllButton,
             directedPath: directedPathButton,
             undirectedPath: undirectedPathButton,
@@ -124,6 +141,7 @@ export function createUIControls(container: HTMLElement, callbacks: UICallbacks)
             menu: menuButton
         },
         containers: {
+            topButtons: topButtonsContainer,
             pathButtons: pathButtonsContainer,
             settingsPanel
         }

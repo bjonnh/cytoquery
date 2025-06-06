@@ -30,25 +30,14 @@ export default class CytoQuery extends Plugin {
 		// Initialize MutationObserver to watch for removed elements
 		this.setupMutationObserver();
 
-		this.registerMarkdownCodeBlockProcessor('cytoquery', (source, el, _) => {
+		this.registerMarkdownCodeBlockProcessor('cytoquery', (source, el, ctx) => {
 			// Generate a random id
 			const randomId = Math.random().toString(36).substring(2, 15);
 			const div = el.createDiv({ cls: 'force-graph-3d', attr: { id: randomId } });
 
 			// Pass the source as query text (convert cytoquery to 3d-force-graph)
-			setTimeout(() => this.init3DForceGraph(randomId, source, el), 0);
-		});
-
-		this.registerMarkdownCodeBlockProcessor('3d-force-graph', (source, el, ctx) => {
-			// Generate a random id
-			const randomId = Math.random().toString(36).substring(2, 15);
-			const div = el.createDiv({ cls: 'force-graph-3d', attr: { id: randomId } });
-
-			// Pass the source and element for updating
 			setTimeout(() => this.init3DForceGraph(randomId, source, el, ctx), 0);
 		});
-
-
 	}
 
 	onunload() {
@@ -70,8 +59,11 @@ export default class CytoQuery extends Plugin {
 
 	private cleanupGraph(containerId: string, graph: any) {
 		try {
-			if (graph._destructor) {
-				// For 3D-force-graph
+			// Call our custom cleanup function first
+			if (graph._cleanup) {
+				graph._cleanup();
+			} else if (graph._destructor) {
+				// Fallback to 3D-force-graph destructor
 				graph._destructor();
 			}
 		} catch (error) {

@@ -60,3 +60,34 @@
   - Tag nodes are connected to all pages that use them
   - Supports both inline tags (#tag) and frontmatter tags
   - Case-insensitive matching for tags and node names
+- Hyperdimensional Node Positioning:
+  - Define custom spatial systems (e.g., "Time", "Geography", "Concepts")
+  - Create axes within spatial systems with optional min/max bounds
+  - Map any axis to the 3D graph's X, Y, or Z dimensions
+  - Position nodes independently on each axis (nodes can be locked in some dimensions while free in others)
+  - UI panel (📐) for managing spatial systems and axes:
+    - Create/delete spatial systems and axes
+    - Real-time axis mapping selectors
+    - Visual organization by spatial system
+  - Node position editor in circular menu:
+    - Edit positions for all defined axes
+    - Unlock nodes in specific dimensions
+    - Respects axis bounds when setting values
+  - Full persistence of hyperdimension data in code blocks
+  - Backward compatible with legacy locked nodes system
+  - Bidirectional position synchronization:
+    - Dragging nodes updates their positions in currently mapped axes
+    - Changing axis mapping immediately repositions nodes to their stored coordinates
+    - Locking a node captures its current position in all mapped axes
+    - Position values update in real-time in the UI
+- Centered Top Button Layout:
+  - All control buttons are now centered at the top of the graph view
+  - Responsive flexbox layout that maintains center alignment
+  - Menu button remains in the top-right corner for consistency
+  - Clean, organized appearance with consistent spacing between buttons
+- Enhanced Hyperdimension Features:
+  - Prevents mapping the same axis to multiple physical dimensions
+  - 3D axis indicator in bottom-left corner showing X (red), Y (green), Z (blue) axes
+  - Camera orientation reset button (🧭) to standard XYZ view
+  - Axis indicator stays fixed in screen position using viewport overlay rendering
+  - Standard orientation: X = left-right, Y = up-down, Z = front-back

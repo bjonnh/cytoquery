@@ -1,3 +1,8 @@
+import { SerializedHyperdimensionData } from './hyperdimensions';
+
+/**
+ * Interface defining all configurable parameters for the 3D force graph
+ */
 export interface GraphParameters {
     force?: {
         alphaDecay?: number;
@@ -33,12 +38,17 @@ export interface GraphParameters {
         cooldownTicks?: number;
         cooldownTime?: number;
     };
+    /**
+     * @deprecated Use hyperdimensions instead
+     */
     lockedNodes?: Array<{
         name: string;
         x: number;
         y: number;
         z: number;
     }>;
+    /** Hyperdimensional positioning data */
+    hyperdimensions?: SerializedHyperdimensionData;
 }
 
 export interface GraphNode {

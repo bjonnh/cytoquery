@@ -6,6 +6,7 @@ import {
     createGraph,
     addBloomPass,
     applyLockedNodes,
+    applyHyperdimensionPositions,
     GraphUIState,
     GraphCallbacks
 } from './graph-renderer';
@@ -14,12 +15,23 @@ import {
     toggleIdleRotation,
     toggleFPSLimiter,
     updateNodeObjectTracking,
+    cleanupAnimationState,
     AnimationState
 } from './graph-animations';
 import { findPath, restrictToNode } from './path-finding';
 import { createUIControls, createParsingErrorDisplay, UICallbacks } from './ui-components';
 import { createCircularMenu, CircularMenuCallbacks, CircularMenuState } from './circular-menu';
 import { createSettingsControls, SettingsCallbacks } from './settings-panel';
+import { 
+    createHyperdimensionManager, 
+    deserializeHyperdimensionData,
+    serializeHyperdimensionData,
+    setNodePosition,
+    removeNodePositions
+} from './hyperdimension-manager';
+import { createHyperdimensionPanel, HyperdimensionUICallbacks } from './hyperdimension-ui';
+import { createAxisIndicatorSystem, disposeAxisIndicator, updateAxisLabels } from './axis-indicator';
+import { createCoordinateDisplay, CoordinateDisplay } from './coordinate-display';
 
 // Interface for platform-specific implementations
 export interface GraphPlatformAdapter {
@@ -65,7 +77,12 @@ export function initGraph(
 
     // Create a wrapper div for the graph itself
     const graphContainer = document.createElement('div');
-    graphContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;';
+    graphContainer.className = 'graph-container';
+    graphContainer.style.position = 'absolute';
+    graphContainer.style.top = '0';
+    graphContainer.style.left = '0';
+    graphContainer.style.width = '100%';
+    graphContainer.style.height = '100%';
     container.appendChild(graphContainer);
 
     // Parse errors display (if query parsing fails)
@@ -80,13 +97,22 @@ export function initGraph(
         createParsingErrorDisplay(container, parseErrors);
     }
 
+    // Initialize hyperdimension manager
+    let hyperdimensionManager;
+    if (parameters.hyperdimensions) {
+        hyperdimensionManager = deserializeHyperdimensionData(parameters.hyperdimensions);
+    } else {
+        hyperdimensionManager = createHyperdimensionManager();
+    }
+
     // Initialize UI state
     const uiState: GraphUIState = {
         selectedNode: null,
         sourceNode: null,
         targetNode: null,
         currentPath: [],
-        lockedNodes: new Set<string>()
+        lockedNodes: new Set<string>(),
+        hyperdimensionManager
     };
 
     // Track current parameter values for dynamic functions
@@ -124,7 +150,8 @@ export function initGraph(
             warmupTicks: parameters.performance?.warmupTicks || 0,
             cooldownTicks: parameters.performance?.cooldownTicks || Infinity,
             cooldownTime: parameters.performance?.cooldownTime || 10000
-        }
+        },
+        hyperdimensions: undefined // Will be updated before saving
     };
 
     // Track menu state
@@ -132,7 +159,8 @@ export function initGraph(
         currentRestriction: null,
         publicMode: platformAdapter.publicMode,
         sourceNode: uiState.sourceNode,
-        targetNode: uiState.targetNode
+        targetNode: uiState.targetNode,
+        hyperdimensionManager: uiState.hyperdimensionManager
     };
 
     // Create menu cleanup
@@ -179,16 +207,53 @@ export function initGraph(
                         delete currentNode.fx;
                         delete currentNode.fy;
                         delete currentNode.fz;
+                        
+                        // Remove hyperdimension positions
+                        if (uiState.hyperdimensionManager) {
+                            removeNodePositions(uiState.hyperdimensionManager, nodeId);
+                            // Update UI if panel is open
+                            if (hyperdimensionPanel) {
+                                hyperdimensionPanel.updateUI();
+                            }
+                        }
                     } else {
                         // Lock the node at its current position
                         uiState.lockedNodes.add(nodeId);
                         currentNode.fx = currentNode.x;
                         currentNode.fy = currentNode.y;
                         currentNode.fz = currentNode.z;
+                        
+                        // Update hyperdimension positions if available
+                        if (uiState.hyperdimensionManager) {
+                            const manager = uiState.hyperdimensionManager;
+                            
+                            // Update positions for currently mapped axes
+                            if (manager.axisMapping.xAxis) {
+                                setNodePosition(manager, nodeId, manager.axisMapping.xAxis, currentNode.x);
+                            }
+                            if (manager.axisMapping.yAxis) {
+                                setNodePosition(manager, nodeId, manager.axisMapping.yAxis, currentNode.y);
+                            }
+                            if (manager.axisMapping.zAxis) {
+                                setNodePosition(manager, nodeId, manager.axisMapping.zAxis, currentNode.z);
+                            }
+                            
+                            // Update UI if panel is open
+                            if (hyperdimensionPanel) {
+                                hyperdimensionPanel.updateUI();
+                            }
+                        }
                     }
                     
                     // Update unlock all button visibility
                     uiElements.buttons.unlockAll.style.display = uiState.lockedNodes.size > 0 ? 'flex' : 'none';
+                    
+                    // Mark as unsaved
+                    hasUnsavedChanges = true;
+                    if (platformAdapter.saveParameters) {
+                        uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                        uiElements.buttons.save.innerHTML = '💾*';
+                    }
                     
                     // Force re-render to update lock indicators
                     Graph.nodeThreeObject(Graph.nodeThreeObject());
@@ -300,11 +365,104 @@ export function initGraph(
         menuState
     );
 
+    // Create coordinate display
+    let coordinateDisplay: CoordinateDisplay | null = null;
+    if (uiState.hyperdimensionManager || parameters.interaction?.enableDrag !== false) {
+        coordinateDisplay = createCoordinateDisplay(container, uiState.hyperdimensionManager);
+    }
+    
+    // Add node drag handlers for coordinate display and hyperdimension sync
+    if (parameters.interaction?.enableDrag !== false) {
+        // Show coordinates during drag
+        Graph.onNodeDrag((node: any) => {
+            if (coordinateDisplay) {
+                coordinateDisplay.update(
+                    node.id,
+                    node.x || 0,
+                    node.y || 0,
+                    node.z || 0
+                );
+                coordinateDisplay.show();
+            }
+        });
+        
+        // Update hyperdimensions and hide display on drag end
+        Graph.onNodeDragEnd((node: any) => {
+            // Hide coordinate display
+            if (coordinateDisplay) {
+                coordinateDisplay.hide();
+            }
+            
+            // Update hyperdimension positions if manager exists
+            if (uiState.hyperdimensionManager) {
+                const manager = uiState.hyperdimensionManager;
+                
+                // Only update if node has been moved (has fx, fy, fz)
+                if (node.fx !== undefined || node.fy !== undefined || node.fz !== undefined) {
+                    // Update X axis position if mapped
+                    if (manager.axisMapping.xAxis && node.fx !== undefined) {
+                        setNodePosition(manager, node.id, manager.axisMapping.xAxis, node.fx);
+                    }
+                    
+                    // Update Y axis position if mapped
+                    if (manager.axisMapping.yAxis && node.fy !== undefined) {
+                        setNodePosition(manager, node.id, manager.axisMapping.yAxis, node.fy);
+                    }
+                    
+                    // Update Z axis position if mapped
+                    if (manager.axisMapping.zAxis && node.fz !== undefined) {
+                        setNodePosition(manager, node.id, manager.axisMapping.zAxis, node.fz);
+                    }
+                    
+                    // Mark as unsaved
+                    hasUnsavedChanges = true;
+                    if (platformAdapter.saveParameters) {
+                        uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                        uiElements.buttons.save.innerHTML = '💾*';
+                    }
+                    
+                    // Update UI if panel is open
+                    if (hyperdimensionPanel) {
+                        hyperdimensionPanel.updateUI();
+                    }
+                }
+            }
+        });
+    }
+
     // Add bloom pass
     const bloomPass = addBloomPass(Graph, graphContainer, parameters);
 
+    // Create axis indicator system (separate renderer for overlay)
+    const axisIndicatorSystem = createAxisIndicatorSystem(container);
+    
+    // Function to update axis labels based on current mapping
+    const updateAxisIndicatorLabels = () => {
+        if (uiState.hyperdimensionManager && axisIndicatorSystem) {
+            const manager = uiState.hyperdimensionManager;
+            
+            // Get axis names for current mapping
+            const xAxisName = manager.axisMapping.xAxis ? 
+                manager.axes.get(manager.axisMapping.xAxis)?.name || null : null;
+            const yAxisName = manager.axisMapping.yAxis ? 
+                manager.axes.get(manager.axisMapping.yAxis)?.name || null : null;
+            const zAxisName = manager.axisMapping.zAxis ? 
+                manager.axes.get(manager.axisMapping.zAxis)?.name || null : null;
+            
+            updateAxisLabels(axisIndicatorSystem, xAxisName, yAxisName, zAxisName);
+        }
+    };
+    
+    // Initial update of axis labels
+    updateAxisIndicatorLabels();
+
     // Apply locked nodes from parameters
     applyLockedNodes(Graph, parameters, uiState.lockedNodes);
+    
+    // Apply hyperdimension positions if available
+    if (uiState.hyperdimensionManager) {
+        applyHyperdimensionPositions(Graph, uiState.hyperdimensionManager, uiState.lockedNodes, 1000);
+    }
 
     // Initialize animation state
     const animationState: AnimationState = {
@@ -314,7 +472,8 @@ export function initGraph(
         rotationSpeed: 0.3,
         idlePreventionInterval: null,
         isFPSLimiterDisabled: false,
-        fpsPreventionInterval: null
+        fpsPreventionInterval: null,
+        axisIndicatorSystem: axisIndicatorSystem
     };
 
     // Update node object tracking in the graph renderer
@@ -360,6 +519,52 @@ export function initGraph(
                 Graph.enableNavigationControls();
             }, 500);
         },
+        onResetOrientation: () => {
+            // Get current camera distance from origin
+            const camera = Graph.camera();
+            const currentDistance = camera.position.length();
+            
+            
+            // Disable controls during animation
+            const controls = Graph.controls();
+            if (controls) {
+                controls.enabled = false;
+            }
+            
+            // Set camera to look straight at the graph from the positive Z axis
+            // This aligns with screen coordinates:
+            // X: horizontal (left-right)
+            // Y: vertical (up-down)
+            // Z: depth (toward viewer)
+            const newPosition = {
+                x: 0,
+                y: 0,
+                z: currentDistance
+            };
+            
+            // Animate camera to new position, looking at origin
+            Graph.cameraPosition(
+                newPosition,
+                { x: 0, y: 0, z: 0 }, // Look at origin
+                1000 // 1 second animation
+            );
+            
+            // After animation, ensure camera is properly oriented
+            setTimeout(() => {
+                // Force exact position and orientation
+                camera.position.set(0, 0, currentDistance);
+                camera.lookAt(0, 0, 0);
+                camera.up.set(0, 1, 0); // Ensure Y is up
+                
+                // Update controls
+                if (controls) {
+                    controls.target.set(0, 0, 0);
+                    controls.update();
+                    controls.enabled = true;
+                }
+                
+            }, 1100);
+        },
         onUnlockAll: () => {
             const graphData = Graph.graphData();
             graphData.nodes.forEach((node: any) => {
@@ -368,9 +573,27 @@ export function initGraph(
                     delete node.fx;
                     delete node.fy;
                     delete node.fz;
+                    
+                    // Remove hyperdimension positions
+                    if (uiState.hyperdimensionManager) {
+                        removeNodePositions(uiState.hyperdimensionManager, node.id);
+                    }
                 }
             });
+            
+            // Update UI if panel is open
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+            
             uiElements.buttons.unlockAll.style.display = uiState.lockedNodes.size > 0 ? 'flex' : 'none';
+            
+            // Mark as unsaved
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
             
             // Force re-render to update lock indicators
             Graph.nodeThreeObject(Graph.nodeThreeObject());
@@ -411,6 +634,11 @@ export function initGraph(
                     }
                     return null;
                 }).filter(n => n !== null);
+
+                // Update hyperdimensions in currentParams before saving
+                if (uiState.hyperdimensionManager) {
+                    currentParams.hyperdimensions = serializeHyperdimensionData(uiState.hyperdimensionManager);
+                }
 
                 const saved = platformAdapter.saveParameters(currentParams, lockedNodesData);
                 if (saved) {
@@ -476,6 +704,109 @@ export function initGraph(
     const uiElements = createUIControls(container, uiCallbacks);
     setupIdleRotationButton();
     setupFPSLimiterButton();
+    
+    // Initialize path UI visibility
+    updatePathUI();
+    
+    // Create hyperdimension panel
+    let hyperdimensionPanel: { panel: HTMLDivElement; updateUI: () => void } | null = null;
+    
+    // Define callbacks that will update the panel when it exists
+    const hyperdimensionCallbacks: HyperdimensionUICallbacks = {
+        onSpatialSystemCreated: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Update the UI to ensure new system appears
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+        },
+        onSpatialSystemDeleted: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Update the UI to ensure deleted system is removed from dropdowns
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+        },
+        onAxisCreated: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Update the UI to ensure new axis appears in dropdowns
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+            // Update axis indicator labels in case the new axis is mapped
+            updateAxisIndicatorLabels();
+        },
+        onAxisDeleted: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Update the UI to ensure deleted axis is removed from dropdowns
+            if (hyperdimensionPanel) {
+                hyperdimensionPanel.updateUI();
+            }
+            // Update axis indicator labels in case the deleted axis was mapped
+            updateAxisIndicatorLabels();
+        },
+        onAxisMappingChanged: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Re-apply positions with new mapping
+            if (uiState.hyperdimensionManager) {
+                applyHyperdimensionPositions(Graph, uiState.hyperdimensionManager, uiState.lockedNodes);
+            }
+            // Update axis indicator labels
+            updateAxisIndicatorLabels();
+        },
+        onNodePositionChanged: () => {
+            hasUnsavedChanges = true;
+            if (platformAdapter.saveParameters) {
+                uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                uiElements.buttons.save.innerHTML = '💾*';
+            }
+            // Re-apply positions
+            if (uiState.hyperdimensionManager) {
+                applyHyperdimensionPositions(Graph, uiState.hyperdimensionManager, uiState.lockedNodes);
+            }
+        }
+    };
+    
+    if (uiState.hyperdimensionManager) {
+        // Create hyperdimension button
+        const hyperdimensionButton = document.createElement('button');
+        hyperdimensionButton.innerHTML = '📐';
+        hyperdimensionButton.title = 'Toggle Hyperdimension Panel';
+        hyperdimensionButton.className = 'graph-control-button hyperdimension';
+        hyperdimensionButton.onclick = () => {
+            if (!hyperdimensionPanel) {
+                hyperdimensionPanel = createHyperdimensionPanel(
+                    container,
+                    uiState.hyperdimensionManager!,
+                    hyperdimensionCallbacks
+                );
+            }
+            
+            hyperdimensionPanel.panel.classList.toggle('open');
+            hyperdimensionButton.classList.toggle('active');
+        };
+        uiElements.containers.topButtons.appendChild(hyperdimensionButton);
+    }
 
     // Update unlock all button visibility based on initial locked nodes
     if (parameters.lockedNodes && parameters.lockedNodes.length > 0) {
@@ -538,8 +869,48 @@ export function initGraph(
             }
         }
         
-        // Center on graph after size adjustment
-        Graph.zoomToFit(400, 50);
+        // Get initial distance from zoomToFit but override the camera angle
+        setTimeout(() => {
+            // First let zoomToFit calculate the appropriate distance
+            Graph.zoomToFit(1, 50); // Very fast, just to calculate distance
+            
+            // Wait for zoomToFit to complete then override camera position
+            setTimeout(() => {
+                const camera = Graph.camera();
+                const controls = Graph.controls();
+                const currentDistance = camera.position.length();
+                
+                
+                // Disable controls to prevent interference
+                if (controls) {
+                    controls.enabled = false;
+                }
+                
+                // Use the Graph's cameraPosition method for proper animation
+                Graph.cameraPosition(
+                    { x: 0, y: 0, z: currentDistance },
+                    { x: 0, y: 0, z: 0 },
+                    500
+                );
+                
+                // After animation completes, ensure everything is set correctly
+                setTimeout(() => {
+                    // Force exact position
+                    camera.position.set(0, 0, currentDistance);
+                    camera.lookAt(0, 0, 0);
+                    camera.up.set(0, 1, 0);
+                    camera.updateProjectionMatrix();
+                    
+                    // Update and re-enable controls
+                    if (controls) {
+                        controls.target.set(0, 0, 0);
+                        controls.update();
+                        controls.enabled = true;
+                    }
+                    
+                }, 600);
+            }, 100);
+        }, 100);
     }, 100);
     
     // Handle container resize
@@ -560,11 +931,28 @@ export function initGraph(
         }
     });
     resizeObserver.observe(graphContainer);
+    
 
     // Store graph instance with cleanup function
     const graphInstance = Object.assign(Graph, {
         _cleanup: () => {
+            // Clean up animation state
+            cleanupAnimationState(animationState);
+            
+            // Disconnect observers
             resizeObserver.disconnect();
+            
+            // Dispose axis indicator
+            if (axisIndicatorSystem) {
+                disposeAxisIndicator(axisIndicatorSystem);
+            }
+            
+            // Remove coordinate display
+            if (coordinateDisplay) {
+                coordinateDisplay.element.remove();
+            }
+            
+            // Call 3d-force-graph destructor
             if (Graph._destructor) {
                 Graph._destructor();
             }

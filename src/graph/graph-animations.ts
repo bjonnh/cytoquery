@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AxisIndicatorSystem } from './axis-indicator';
 
 export interface AnimationState {
     nodeObjects: Map<string, THREE.Group>;
@@ -8,6 +9,8 @@ export interface AnimationState {
     idlePreventionInterval: number | null;
     isFPSLimiterDisabled: boolean;
     fpsPreventionInterval: number | null;
+    axisIndicatorSystem?: AxisIndicatorSystem;
+    animationFrameId?: number;
 }
 
 export function createAnimationLoop(
@@ -146,7 +149,14 @@ export function createAnimationLoop(
             animationState.rotationStartTime = currentTime;
         }
         
-        requestAnimationFrame(animate);
+        // Update axis indicator if available
+        if (animationState.axisIndicatorSystem && Graph.camera) {
+            const { updateAxisIndicator } = require('./axis-indicator');
+            updateAxisIndicator(animationState.axisIndicatorSystem, Graph.camera());
+        }
+        
+        // Store the animation frame ID so we can cancel it later
+        animationState.animationFrameId = requestAnimationFrame(animate);
     };
     animate();
 }
@@ -164,6 +174,11 @@ export function toggleIdleRotation(
         // Pause and immediately resume to force requestAnimationFrame mode
         Graph.pauseAnimation();
         Graph.resumeAnimation();
+        
+        // Clear any existing interval before creating a new one
+        if (animationState.idlePreventionInterval !== null) {
+            window.clearInterval(animationState.idlePreventionInterval);
+        }
         
         // Set up an interval to simulate user interaction
         animationState.idlePreventionInterval = window.setInterval(() => {
@@ -263,4 +278,30 @@ export function toggleFPSLimiter(
             animationState.fpsPreventionInterval = null;
         }
     }
+}
+
+/**
+ * Cleanup animation state by clearing intervals and canceling animation frames
+ */
+export function cleanupAnimationState(animationState: AnimationState): void {
+    // Clear idle rotation interval
+    if (animationState.idlePreventionInterval !== null) {
+        window.clearInterval(animationState.idlePreventionInterval);
+        animationState.idlePreventionInterval = null;
+    }
+    
+    // Clear FPS limiter interval
+    if (animationState.fpsPreventionInterval !== null) {
+        window.clearInterval(animationState.fpsPreventionInterval);
+        animationState.fpsPreventionInterval = null;
+    }
+    
+    // Cancel animation frame
+    if (animationState.animationFrameId !== undefined) {
+        cancelAnimationFrame(animationState.animationFrameId);
+        animationState.animationFrameId = undefined;
+    }
+    
+    // Clear node objects map
+    animationState.nodeObjects.clear();
 }

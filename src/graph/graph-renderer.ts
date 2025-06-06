@@ -2,6 +2,8 @@ import ForceGraph3D from "../lib/3d-force-graph";
 import * as THREE from "three";
 import { UnrealBloomPass } from '../lib/UnrealBloomPass';
 import { GraphParameters, GraphData, GraphNode } from '../types/graph';
+import { HyperdimensionManager } from '../types/hyperdimensions';
+import { getNode3DPosition } from './hyperdimension-manager';
 
 export interface GraphInstance {
     graph: any;
@@ -18,6 +20,7 @@ export interface GraphUIState {
     targetNode: string | null;
     currentPath: string[];
     lockedNodes: Set<string>;
+    hyperdimensionManager?: HyperdimensionManager;
 }
 
 export function createGraph(
@@ -30,7 +33,7 @@ export function createGraph(
     menuState?: any
 ): any {
     // Initialize the 3D force graph with default or loaded parameters
-    const Graph = new ForceGraph3D(container)
+    const Graph = ForceGraph3D()(container)
         .backgroundColor('#000003')
         .nodeLabel('name')
         .nodeColor('color')
@@ -414,4 +417,69 @@ export function applyLockedNodes(Graph: any, parameters: GraphParameters, locked
             }
         }, 1000);
     }
+}
+
+/**
+ * Applies hyperdimension positions to nodes based on current axis mapping
+ */
+export function applyHyperdimensionPositions(
+    Graph: any,
+    hyperdimensionManager: HyperdimensionManager,
+    lockedNodes: Set<string>,
+    delay: number = 100
+): void {
+    // Apply positions after a short delay to ensure graph is initialized
+    setTimeout(() => {
+        const nodes = Graph.graphData().nodes;
+        let nodesUpdated = false;
+        
+        // Clear the locked nodes set - we'll rebuild it based on hyperdimension data
+        lockedNodes.clear();
+        
+        nodes.forEach((node: any) => {
+            const position = getNode3DPosition(hyperdimensionManager, node.id);
+            
+            // Apply positions from hyperdimensions or unlock if no position exists
+            if (position.x !== null) {
+                node.fx = position.x;
+                nodesUpdated = true;
+            } else {
+                delete node.fx;
+            }
+            
+            if (position.y !== null) {
+                node.fy = position.y;
+                nodesUpdated = true;
+            } else {
+                delete node.fy;
+            }
+            
+            if (position.z !== null) {
+                node.fz = position.z;
+                nodesUpdated = true;
+            } else {
+                delete node.fz;
+            }
+            
+            // If the node has any position in hyperdimensions (not just in current mapping),
+            // add it to locked nodes
+            const nodePosition = hyperdimensionManager.nodePositions.get(node.id);
+            if (nodePosition && nodePosition.positions.size > 0) {
+                lockedNodes.add(String(node.id));
+            }
+        });
+        
+        // Force a re-render to update node visuals
+        if (nodesUpdated || lockedNodes.size > 0) {
+            // Update node objects to show lock indicators
+            Graph.nodeThreeObject(Graph.nodeThreeObject());
+            
+            // Force the simulation to update node positions immediately
+            Graph.d3ReheatSimulation();
+            // Run a few ticks to apply the new positions
+            for (let i = 0; i < 10; i++) {
+                Graph.tickFrame();
+            }
+        }
+    }, delay);
 }

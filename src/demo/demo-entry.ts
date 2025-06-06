@@ -1,6 +1,6 @@
 // Demo entry point - standalone version without Obsidian dependencies
 import { initDemoGraph } from './demo-init';
-import { GraphData, GraphParameters } from './types/graph';
+import { GraphData, GraphParameters } from '../types/graph';
 
 // Export the demo graph manager
 window.CytoQuery = {
