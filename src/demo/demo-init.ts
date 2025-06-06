@@ -1,6 +1,6 @@
 // Demo initialization using the core graph abstraction layer
-import { GraphData, GraphParameters } from './types/graph';
-import { initGraph, GraphPlatformAdapter } from './graph/graph-core';
+import { GraphData, GraphParameters } from '../types/graph';
+import { initGraph, GraphPlatformAdapter } from '../graph/graph-core';
 
 export function initDemoGraph(
     containerId: string,

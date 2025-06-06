@@ -76,7 +76,12 @@ export function initGraph(
 
     // Create a wrapper div for the graph itself
     const graphContainer = document.createElement('div');
-    graphContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;';
+    graphContainer.className = 'graph-container';
+    graphContainer.style.position = 'absolute';
+    graphContainer.style.top = '0';
+    graphContainer.style.left = '0';
+    graphContainer.style.width = '100%';
+    graphContainer.style.height = '100%';
     container.appendChild(graphContainer);
 
     // Parse errors display (if query parsing fails)

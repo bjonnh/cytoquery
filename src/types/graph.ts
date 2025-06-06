@@ -1,5 +1,8 @@
 import { SerializedHyperdimensionData } from './hyperdimensions';
 
+/**
+ * Interface defining all configurable parameters for the 3D force graph
+ */
 export interface GraphParameters {
     force?: {
         alphaDecay?: number;

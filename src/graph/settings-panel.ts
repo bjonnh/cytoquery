@@ -1,5 +1,8 @@
 import { GraphParameters } from '../types/graph';
 
+/**
+ * Callback interface for settings panel actions
+ */
 export interface SettingsCallbacks {
     onParameterChange: () => void;
     onReset: () => void;
@@ -18,7 +21,11 @@ export function createSettingsControls(
     // Title
     const title = document.createElement('h2');
     title.textContent = 'Graph Settings';
-    title.style.cssText = 'margin: 0 0 20px 0; font-size: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 10px;';
+    title.className = 'settings-title';
+    title.style.margin = '0 0 20px 0';
+    title.style.fontSize = '14px';
+    title.style.borderBottom = '1px solid rgba(255, 255, 255, 0.3)';
+    title.style.paddingBottom = '10px';
     settingsPanel.appendChild(title);
 
     // Helper function to create a section
@@ -204,6 +211,323 @@ export function createSettingsControls(
     interactionSection.appendChild(enableDragToggle);
     settingsPanel.appendChild(interactionSection);
 
+    // Presets Section
+    const presetsSection = createSection('Settings Presets');
+
+    // Preset selector
+    const presetContainer = document.createElement('div');
+    presetContainer.style.cssText = 'margin-bottom: 15px; display: flex; gap: 8px;';
+
+    // Input for preset name
+    const presetNameInput = document.createElement('input');
+    presetNameInput.type = 'text';
+    presetNameInput.placeholder = 'Preset name';
+    presetNameInput.style.cssText = `
+        flex: 1;
+        padding: 5px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        border-radius: 4px;
+        font-size: 12px;
+    `;
+
+    // Save preset button
+    const savePresetBtn = document.createElement('button');
+    savePresetBtn.textContent = 'Save';
+    savePresetBtn.style.cssText = `
+        padding: 5px 10px;
+        background: rgba(100, 200, 100, 0.2);
+        border: 1px solid rgba(100, 200, 100, 0.5);
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+    `;
+
+    savePresetBtn.onclick = () => {
+        const presetName = presetNameInput.value.trim();
+        if (!presetName) {
+            alert('Please enter a preset name');
+            return;
+        }
+
+        // Get current presets from localStorage
+        const existingPresetsStr = localStorage.getItem('cytoquery-presets') || '{}';
+        let existingPresets;
+        try {
+            existingPresets = JSON.parse(existingPresetsStr);
+        } catch (e) {
+            existingPresets = {};
+        }
+
+        // Add the new preset
+        existingPresets[presetName] = { ...currentParams };
+
+        // Save back to localStorage
+        localStorage.setItem('cytoquery-presets', JSON.stringify(existingPresets));
+
+        // Update the dropdown
+        updatePresetDropdown();
+        presetDropdown.value = presetName;
+
+        // Show feedback
+        const originalText = savePresetBtn.textContent;
+        savePresetBtn.textContent = '✓ Saved!';
+        setTimeout(() => {
+            savePresetBtn.textContent = originalText;
+        }, 2000);
+    };
+
+    // Create preset dropdown
+    const presetDropdown = document.createElement('select');
+    presetDropdown.style.cssText = `
+        width: 100%;
+        padding: 5px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-bottom: 8px;
+        font-size: 12px;
+    `;
+
+    // Load preset button
+    const loadPresetBtn = document.createElement('button');
+    loadPresetBtn.textContent = 'Load Selected Preset';
+    loadPresetBtn.style.cssText = `
+        width: 100%;
+        padding: 6px 10px;
+        background: rgba(100, 100, 200, 0.2);
+        border: 1px solid rgba(100, 100, 200, 0.5);
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+        margin-bottom: 8px;
+    `;
+
+    loadPresetBtn.onclick = () => {
+        const presetName = presetDropdown.value;
+        if (!presetName) return;
+
+        // Get presets from localStorage
+        const presetsStr = localStorage.getItem('cytoquery-presets') || '{}';
+        let presets;
+        try {
+            presets = JSON.parse(presetsStr);
+        } catch (e) {
+            presets = {};
+        }
+
+        const preset = presets[presetName];
+        if (!preset) return;
+
+        // Apply preset settings
+        if (preset.force) {
+            if (preset.force.alphaDecay !== undefined) {
+                Graph.d3AlphaDecay(preset.force.alphaDecay);
+                currentParams.force!.alphaDecay = preset.force.alphaDecay;
+            }
+            if (preset.force.velocityDecay !== undefined) {
+                Graph.d3VelocityDecay(preset.force.velocityDecay);
+                currentParams.force!.velocityDecay = preset.force.velocityDecay;
+            }
+            if (preset.force.alphaMin !== undefined) {
+                Graph.d3AlphaMin(preset.force.alphaMin);
+                currentParams.force!.alphaMin = preset.force.alphaMin;
+            }
+        }
+
+        if (preset.dag) {
+            if (preset.dag.mode !== undefined) {
+                Graph.dagMode(preset.dag.mode as any);
+                currentParams.dag!.mode = preset.dag.mode;
+            }
+            if (preset.dag.levelDistance !== undefined) {
+                Graph.dagLevelDistance(preset.dag.levelDistance);
+                currentParams.dag!.levelDistance = preset.dag.levelDistance;
+            }
+        }
+
+        if (preset.nodeStyle) {
+            if (preset.nodeStyle.size !== undefined) {
+                currentParams.nodeStyle!.size = preset.nodeStyle.size;
+            }
+            if (preset.nodeStyle.opacity !== undefined) {
+                currentParams.nodeStyle!.opacity = preset.nodeStyle.opacity;
+            }
+            if (preset.nodeStyle.resolution !== undefined) {
+                currentParams.nodeStyle!.resolution = preset.nodeStyle.resolution;
+            }
+            // Force re-render of all nodes with new settings
+            Graph.nodeThreeObject(Graph.nodeThreeObject());
+        }
+
+        if (preset.linkStyle) {
+            if (preset.linkStyle.opacity !== undefined) {
+                Graph.linkOpacity(preset.linkStyle.opacity);
+                currentParams.linkStyle!.opacity = preset.linkStyle.opacity;
+            }
+            if (preset.linkStyle.width !== undefined) {
+                currentParams.linkStyle!.width = preset.linkStyle.width;
+            }
+            if (preset.linkStyle.curvature !== undefined) {
+                Graph.linkCurvature(preset.linkStyle.curvature);
+                currentParams.linkStyle!.curvature = preset.linkStyle.curvature;
+            }
+            if (preset.linkStyle.particles !== undefined) {
+                Graph.linkDirectionalParticles(preset.linkStyle.particles);
+                currentParams.linkStyle!.particles = preset.linkStyle.particles;
+            }
+            if (preset.linkStyle.particleSpeed !== undefined) {
+                Graph.linkDirectionalParticleSpeed(preset.linkStyle.particleSpeed);
+                currentParams.linkStyle!.particleSpeed = preset.linkStyle.particleSpeed;
+            }
+        }
+
+        if (preset.bloom) {
+            if (preset.bloom.strength !== undefined) {
+                bloomPass.strength = preset.bloom.strength;
+                currentParams.bloom!.strength = preset.bloom.strength;
+            }
+            if (preset.bloom.radius !== undefined) {
+                bloomPass.radius = preset.bloom.radius;
+                currentParams.bloom!.radius = preset.bloom.radius;
+            }
+            if (preset.bloom.threshold !== undefined) {
+                bloomPass.threshold = preset.bloom.threshold;
+                currentParams.bloom!.threshold = preset.bloom.threshold;
+            }
+        }
+
+        if (preset.interaction) {
+            if (preset.interaction.enableDrag !== undefined) {
+                Graph.enableNodeDrag(preset.interaction.enableDrag);
+                currentParams.interaction!.enableDrag = preset.interaction.enableDrag;
+            }
+        }
+
+        if (preset.performance) {
+            if (preset.performance.warmupTicks !== undefined) {
+                Graph.warmupTicks(preset.performance.warmupTicks);
+                currentParams.performance!.warmupTicks = preset.performance.warmupTicks;
+            }
+            if (preset.performance.cooldownTicks !== undefined) {
+                Graph.cooldownTicks(preset.performance.cooldownTicks);
+                currentParams.performance!.cooldownTicks = preset.performance.cooldownTicks;
+            }
+            if (preset.performance.cooldownTime !== undefined) {
+                Graph.cooldownTime(preset.performance.cooldownTime);
+                currentParams.performance!.cooldownTime = preset.performance.cooldownTime;
+            }
+        }
+
+        // Refresh graph
+        Graph.refresh();
+
+        // Recreate controls to update UI
+        callbacks.onReset();
+
+        // Show feedback
+        const originalText = loadPresetBtn.textContent;
+        loadPresetBtn.textContent = '✓ Preset Applied!';
+        setTimeout(() => {
+            loadPresetBtn.textContent = originalText;
+        }, 2000);
+
+        // Trigger change callback
+        callbacks.onParameterChange();
+    };
+
+    // Delete preset button
+    const deletePresetBtn = document.createElement('button');
+    deletePresetBtn.textContent = 'Delete Selected Preset';
+    deletePresetBtn.style.cssText = `
+        width: 100%;
+        padding: 6px 10px;
+        background: rgba(200, 100, 100, 0.2);
+        border: 1px solid rgba(200, 100, 100, 0.5);
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+    `;
+
+    deletePresetBtn.onclick = () => {
+        const presetName = presetDropdown.value;
+        if (!presetName || !confirm(`Delete preset "${presetName}"?`)) return;
+
+        // Get presets from localStorage
+        const presetsStr = localStorage.getItem('cytoquery-presets') || '{}';
+        let presets;
+        try {
+            presets = JSON.parse(presetsStr);
+        } catch (e) {
+            presets = {};
+        }
+
+        // Delete the preset
+        if (presets[presetName]) {
+            delete presets[presetName];
+            localStorage.setItem('cytoquery-presets', JSON.stringify(presets));
+
+            // Update dropdown
+            updatePresetDropdown();
+
+            // Show feedback
+            const originalText = deletePresetBtn.textContent;
+            deletePresetBtn.textContent = '✓ Preset Deleted!';
+            setTimeout(() => {
+                deletePresetBtn.textContent = originalText;
+            }, 2000);
+        }
+    };
+
+    // Function to update preset dropdown options
+    function updatePresetDropdown() {
+        // Clear existing options
+        presetDropdown.innerHTML = '';
+
+        // Add default empty option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '-- Select a preset --';
+        defaultOption.style.background = '#333';
+        presetDropdown.appendChild(defaultOption);
+
+        // Get saved presets
+        const presetsStr = localStorage.getItem('cytoquery-presets') || '{}';
+        let presets;
+        try {
+            presets = JSON.parse(presetsStr);
+        } catch (e) {
+            presets = {};
+        }
+
+        // Add preset options
+        Object.keys(presets).sort().forEach(presetName => {
+            const option = document.createElement('option');
+            option.value = presetName;
+            option.textContent = presetName;
+            option.style.background = '#333';
+            presetDropdown.appendChild(option);
+        });
+    }
+
+    // Initialize preset dropdown
+    updatePresetDropdown();
+
+    // Add elements to the presets section
+    presetContainer.appendChild(presetNameInput);
+    presetContainer.appendChild(savePresetBtn);
+    presetsSection.appendChild(presetContainer);
+    presetsSection.appendChild(presetDropdown);
+    presetsSection.appendChild(loadPresetBtn);
+    presetsSection.appendChild(deletePresetBtn);
+    settingsPanel.appendChild(presetsSection);
+
     // Performance Section
     const perfSection = createSection('Performance');
     perfSection.appendChild(createSlider('Warmup Ticks', 0, 200, 10, currentParams.performance!.warmupTicks!, (val) => {
@@ -236,6 +560,7 @@ export function createSettingsControls(
         cursor: pointer;
         font-size: 14px;
         transition: background 0.2s;
+        margin-bottom: 10px;
     `;
     resetBtn.onmouseover = () => resetBtn.style.background = 'rgba(200, 100, 100, 0.3)';
     resetBtn.onmouseout = () => resetBtn.style.background = 'rgba(200, 100, 100, 0.2)';
@@ -285,5 +610,56 @@ export function createSettingsControls(
         callbacks.onReset();
     };
     resetSection.appendChild(resetBtn);
+
+    // Add export settings button
+    const exportBtn = document.createElement('button');
+    exportBtn.textContent = 'Export Settings';
+    exportBtn.style.cssText = `
+        display: block;
+        width: 100%;
+        padding: 10px 16px;
+        background: rgba(100, 100, 200, 0.2);
+        border: 1px solid rgba(100, 100, 200, 0.5);
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+    `;
+    exportBtn.onmouseover = () => exportBtn.style.background = 'rgba(100, 100, 200, 0.3)';
+    exportBtn.onmouseout = () => exportBtn.style.background = 'rgba(100, 100, 200, 0.2)';
+    exportBtn.onclick = () => {
+        // Create a copy of the current parameters
+        const exportParams = JSON.stringify(currentParams, null, 2);
+
+        // Create a temporary textarea element to copy to clipboard
+        const tempTextArea = document.createElement('textarea');
+        tempTextArea.value = exportParams;
+        tempTextArea.style.position = 'fixed';
+        tempTextArea.style.left = '-999999px';
+        tempTextArea.style.top = '-999999px';
+        document.body.appendChild(tempTextArea);
+        tempTextArea.focus();
+        tempTextArea.select();
+
+        // Copy text to clipboard
+        let success = false;
+        try {
+            success = document.execCommand('copy');
+        } catch (err) {
+            console.error('Failed to copy settings to clipboard', err);
+        }
+
+        // Clean up
+        document.body.removeChild(tempTextArea);
+
+        // Show feedback that the settings were copied
+        const originalText = exportBtn.textContent;
+        exportBtn.textContent = success ? '✓ Copied to clipboard!' : '❌ Copy failed';
+        setTimeout(() => {
+            exportBtn.textContent = originalText;
+        }, 2000);
+    };
+    resetSection.appendChild(exportBtn);
     settingsPanel.appendChild(resetSection);
 }

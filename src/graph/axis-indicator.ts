@@ -15,20 +15,19 @@ export interface AxisIndicatorSystem {
 export function createAxisIndicatorSystem(parentContainer: HTMLElement): AxisIndicatorSystem {
     // Create container for the axis indicator
     const container = document.createElement('div');
-    container.style.cssText = `
-        position: absolute;
-        bottom: 10px;
-        left: 10px;
-        width: 120px;
-        height: 120px;
-        z-index: 1000;
-        pointer-events: none;
-        background: rgba(0, 0, 0, 0.5);
-        border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    `;
+    container.className = 'axis-indicator-container';
+    container.style.position = 'absolute';
+    container.style.bottom = '10px';
+    container.style.left = '10px';
+    container.style.width = '120px';
+    container.style.height = '120px';
+    container.style.zIndex = '1000';
+    container.style.pointerEvents = 'none';
+    container.style.background = 'rgba(0, 0, 0, 0.5)';
+    container.style.borderRadius = '8px';
+    container.style.border = '1px solid rgba(255, 255, 255, 0.1)';
     parentContainer.appendChild(container);
-    
+
     // Create a separate renderer for the axis indicator
     const renderer = new THREE.WebGLRenderer({ 
         alpha: true, 
@@ -36,7 +35,8 @@ export function createAxisIndicatorSystem(parentContainer: HTMLElement): AxisInd
     });
     renderer.setSize(120, 120);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.domElement.style.cssText = 'width: 100%; height: 100%;';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
     container.appendChild(renderer.domElement);
     
     // Create a separate scene

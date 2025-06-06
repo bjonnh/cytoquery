@@ -33,7 +33,7 @@ export function createGraph(
     menuState?: any
 ): any {
     // Initialize the 3D force graph with default or loaded parameters
-    const Graph = new ForceGraph3D(container)
+    const Graph = ForceGraph3D()(container)
         .backgroundColor('#000003')
         .nodeLabel('name')
         .nodeColor('color')

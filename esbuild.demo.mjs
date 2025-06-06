@@ -14,7 +14,7 @@ const context = await esbuild.context({
 	banner: {
 		js: banner,
 	},
-	entryPoints: ["src/demo-entry.ts"],
+	entryPoints: ["src/demo/demo-entry.ts"],
 	bundle: true,
 	external: [], // Bundle everything for standalone use
 	format: "iife", // Immediately invoked function expression for browser

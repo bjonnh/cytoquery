@@ -51,33 +51,29 @@ export function createCircularMenu(
     menuX = Math.max(menuRadius, Math.min(containerRect.width - menuRadius, menuX));
     menuY = Math.max(menuRadius, Math.min(containerRect.height - menuRadius, menuY));
     
-    menu.style.cssText = `
-        position: absolute;
-        left: ${menuX}px;
-        top: ${menuY}px;
-        z-index: 1000;
-        cursor: move;
-    `;
+    menu.style.position = 'absolute';
+    menu.style.left = `${menuX}px`;
+    menu.style.top = `${menuY}px`;
+    menu.style.zIndex = '1000';
+    menu.style.cursor = 'move';
 
     // Create center node info
     const centerInfo = document.createElement('div');
     centerInfo.className = 'circular-menu-center';
-    centerInfo.style.cssText = `
-        position: absolute;
-        left: -60px;
-        top: -60px;
-        width: 120px;
-        height: 120px;
-        background: radial-gradient(circle, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.85) 100%);
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        cursor: default;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
-    `;
+    centerInfo.style.position = 'absolute';
+    centerInfo.style.left = '-60px';
+    centerInfo.style.top = '-60px';
+    centerInfo.style.width = '120px';
+    centerInfo.style.height = '120px';
+    centerInfo.style.background = 'radial-gradient(circle, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.85) 100%)';
+    centerInfo.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+    centerInfo.style.borderRadius = '50%';
+    centerInfo.style.display = 'flex';
+    centerInfo.style.flexDirection = 'column';
+    centerInfo.style.alignItems = 'center';
+    centerInfo.style.justifyContent = 'center';
+    centerInfo.style.cursor = 'default';
+    centerInfo.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.8)';
     
     const nodeLabel = document.createElement('div');
     nodeLabel.textContent = node.name;
