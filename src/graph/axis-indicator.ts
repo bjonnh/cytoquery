@@ -52,8 +52,10 @@ export function createAxisIndicatorSystem(parentContainer: HTMLElement): AxisInd
         0.1,
         1000
     );
-    camera.position.set(100, 100, 100);
+    // Position camera on Z axis to match screen coordinates
+    camera.position.set(0, 0, 100);
     camera.lookAt(0, 0, 0);
+    camera.up.set(0, 1, 0);
     
     // Create the axis indicator group
     const axisGroup = createAxisIndicator();
@@ -146,12 +148,16 @@ export function updateAxisIndicator(
     axisIndicatorSystem: AxisIndicatorSystem,
     mainCamera: THREE.Camera
 ): void {
-    // Copy the quaternion from the main camera
-    const quaternion = mainCamera.quaternion.clone();
+    // Get the main camera's view matrix to extract its orientation
+    const viewMatrix = new THREE.Matrix4();
+    viewMatrix.copy(mainCamera.matrixWorldInverse);
     
-    // Apply the rotation to match the main view
-    // We need to apply the inverse so the axes point in the correct directions
-    axisIndicatorSystem.axisGroup.quaternion.copy(quaternion).invert();
+    // Extract the rotation part (top-left 3x3) from the view matrix
+    const rotation = new THREE.Matrix4();
+    rotation.extractRotation(viewMatrix);
+    
+    // Apply this rotation to the axis group
+    axisIndicatorSystem.axisGroup.setRotationFromMatrix(rotation);
     
     // Render the axis indicator
     axisIndicatorSystem.renderer.render(

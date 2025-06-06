@@ -15,6 +15,7 @@ import {
     toggleIdleRotation,
     toggleFPSLimiter,
     updateNodeObjectTracking,
+    cleanupAnimationState,
     AnimationState
 } from './graph-animations';
 import { findPath, restrictToNode } from './path-finding';
@@ -470,15 +471,22 @@ export function initGraph(
             const camera = Graph.camera();
             const currentDistance = camera.position.length();
             
-            // Set camera to standard viewing angle (looking from front-top-right)
-            // X: left-right, Y: up-down, Z: front-back
-            const angle = Math.PI / 4; // 45 degrees
-            const elevation = Math.PI / 6; // 30 degrees
             
+            // Disable controls during animation
+            const controls = Graph.controls();
+            if (controls) {
+                controls.enabled = false;
+            }
+            
+            // Set camera to look straight at the graph from the positive Z axis
+            // This aligns with screen coordinates:
+            // X: horizontal (left-right)
+            // Y: vertical (up-down)
+            // Z: depth (toward viewer)
             const newPosition = {
-                x: currentDistance * Math.cos(angle) * Math.cos(elevation),
-                y: currentDistance * Math.sin(elevation),
-                z: currentDistance * Math.sin(angle) * Math.cos(elevation)
+                x: 0,
+                y: 0,
+                z: currentDistance
             };
             
             // Animate camera to new position, looking at origin
@@ -488,9 +496,20 @@ export function initGraph(
                 1000 // 1 second animation
             );
             
-            // Re-enable controls after animation
+            // After animation, ensure camera is properly oriented
             setTimeout(() => {
-                Graph.enableNavigationControls();
+                // Force exact position and orientation
+                camera.position.set(0, 0, currentDistance);
+                camera.lookAt(0, 0, 0);
+                camera.up.set(0, 1, 0); // Ensure Y is up
+                
+                // Update controls
+                if (controls) {
+                    controls.target.set(0, 0, 0);
+                    controls.update();
+                    controls.enabled = true;
+                }
+                
             }, 1100);
         },
         onUnlockAll: () => {
@@ -788,8 +807,48 @@ export function initGraph(
             }
         }
         
-        // Center on graph after size adjustment
-        Graph.zoomToFit(400, 50);
+        // Get initial distance from zoomToFit but override the camera angle
+        setTimeout(() => {
+            // First let zoomToFit calculate the appropriate distance
+            Graph.zoomToFit(1, 50); // Very fast, just to calculate distance
+            
+            // Wait for zoomToFit to complete then override camera position
+            setTimeout(() => {
+                const camera = Graph.camera();
+                const controls = Graph.controls();
+                const currentDistance = camera.position.length();
+                
+                
+                // Disable controls to prevent interference
+                if (controls) {
+                    controls.enabled = false;
+                }
+                
+                // Use the Graph's cameraPosition method for proper animation
+                Graph.cameraPosition(
+                    { x: 0, y: 0, z: currentDistance },
+                    { x: 0, y: 0, z: 0 },
+                    500
+                );
+                
+                // After animation completes, ensure everything is set correctly
+                setTimeout(() => {
+                    // Force exact position
+                    camera.position.set(0, 0, currentDistance);
+                    camera.lookAt(0, 0, 0);
+                    camera.up.set(0, 1, 0);
+                    camera.updateProjectionMatrix();
+                    
+                    // Update and re-enable controls
+                    if (controls) {
+                        controls.target.set(0, 0, 0);
+                        controls.update();
+                        controls.enabled = true;
+                    }
+                    
+                }, 600);
+            }, 100);
+        }, 100);
     }, 100);
     
     // Handle container resize
@@ -810,14 +869,23 @@ export function initGraph(
         }
     });
     resizeObserver.observe(graphContainer);
+    
 
     // Store graph instance with cleanup function
     const graphInstance = Object.assign(Graph, {
         _cleanup: () => {
+            // Clean up animation state
+            cleanupAnimationState(animationState);
+            
+            // Disconnect observers
             resizeObserver.disconnect();
+            
+            // Dispose axis indicator
             if (axisIndicatorSystem) {
                 disposeAxisIndicator(axisIndicatorSystem);
             }
+            
+            // Call 3d-force-graph destructor
             if (Graph._destructor) {
                 Graph._destructor();
             }
