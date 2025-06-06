@@ -31,6 +31,7 @@ import {
 } from './hyperdimension-manager';
 import { createHyperdimensionPanel, HyperdimensionUICallbacks } from './hyperdimension-ui';
 import { createAxisIndicatorSystem, disposeAxisIndicator, updateAxisLabels } from './axis-indicator';
+import { createCoordinateDisplay, CoordinateDisplay } from './coordinate-display';
 
 // Interface for platform-specific implementations
 export interface GraphPlatformAdapter {
@@ -364,39 +365,66 @@ export function initGraph(
         menuState
     );
 
-    // Add node drag handlers for hyperdimension sync
-    if (uiState.hyperdimensionManager) {
+    // Create coordinate display
+    let coordinateDisplay: CoordinateDisplay | null = null;
+    if (uiState.hyperdimensionManager || parameters.interaction?.enableDrag !== false) {
+        coordinateDisplay = createCoordinateDisplay(container, uiState.hyperdimensionManager);
+    }
+    
+    // Add node drag handlers for coordinate display and hyperdimension sync
+    if (parameters.interaction?.enableDrag !== false) {
+        // Show coordinates during drag
+        Graph.onNodeDrag((node: any) => {
+            if (coordinateDisplay) {
+                coordinateDisplay.update(
+                    node.id,
+                    node.x || 0,
+                    node.y || 0,
+                    node.z || 0
+                );
+                coordinateDisplay.show();
+            }
+        });
+        
+        // Update hyperdimensions and hide display on drag end
         Graph.onNodeDragEnd((node: any) => {
-            // Update hyperdimension positions based on current axis mapping
-            const manager = uiState.hyperdimensionManager!;
+            // Hide coordinate display
+            if (coordinateDisplay) {
+                coordinateDisplay.hide();
+            }
             
-            // Only update if node has been moved (has fx, fy, fz)
-            if (node.fx !== undefined || node.fy !== undefined || node.fz !== undefined) {
-                // Update X axis position if mapped
-                if (manager.axisMapping.xAxis && node.fx !== undefined) {
-                    setNodePosition(manager, node.id, manager.axisMapping.xAxis, node.fx);
-                }
+            // Update hyperdimension positions if manager exists
+            if (uiState.hyperdimensionManager) {
+                const manager = uiState.hyperdimensionManager;
                 
-                // Update Y axis position if mapped
-                if (manager.axisMapping.yAxis && node.fy !== undefined) {
-                    setNodePosition(manager, node.id, manager.axisMapping.yAxis, node.fy);
-                }
-                
-                // Update Z axis position if mapped
-                if (manager.axisMapping.zAxis && node.fz !== undefined) {
-                    setNodePosition(manager, node.id, manager.axisMapping.zAxis, node.fz);
-                }
-                
-                // Mark as unsaved
-                hasUnsavedChanges = true;
-                if (platformAdapter.saveParameters) {
-                    uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
-                    uiElements.buttons.save.innerHTML = '💾*';
-                }
-                
-                // Update UI if panel is open
-                if (hyperdimensionPanel) {
-                    hyperdimensionPanel.updateUI();
+                // Only update if node has been moved (has fx, fy, fz)
+                if (node.fx !== undefined || node.fy !== undefined || node.fz !== undefined) {
+                    // Update X axis position if mapped
+                    if (manager.axisMapping.xAxis && node.fx !== undefined) {
+                        setNodePosition(manager, node.id, manager.axisMapping.xAxis, node.fx);
+                    }
+                    
+                    // Update Y axis position if mapped
+                    if (manager.axisMapping.yAxis && node.fy !== undefined) {
+                        setNodePosition(manager, node.id, manager.axisMapping.yAxis, node.fy);
+                    }
+                    
+                    // Update Z axis position if mapped
+                    if (manager.axisMapping.zAxis && node.fz !== undefined) {
+                        setNodePosition(manager, node.id, manager.axisMapping.zAxis, node.fz);
+                    }
+                    
+                    // Mark as unsaved
+                    hasUnsavedChanges = true;
+                    if (platformAdapter.saveParameters) {
+                        uiElements.buttons.save.style.background = 'rgba(100, 200, 100, 0.3)';
+                        uiElements.buttons.save.innerHTML = '💾*';
+                    }
+                    
+                    // Update UI if panel is open
+                    if (hyperdimensionPanel) {
+                        hyperdimensionPanel.updateUI();
+                    }
                 }
             }
         });
@@ -433,7 +461,7 @@ export function initGraph(
     
     // Apply hyperdimension positions if available
     if (uiState.hyperdimensionManager) {
-        applyHyperdimensionPositions(Graph, uiState.hyperdimensionManager, uiState.lockedNodes);
+        applyHyperdimensionPositions(Graph, uiState.hyperdimensionManager, uiState.lockedNodes, 1000);
     }
 
     // Initialize animation state
@@ -917,6 +945,11 @@ export function initGraph(
             // Dispose axis indicator
             if (axisIndicatorSystem) {
                 disposeAxisIndicator(axisIndicatorSystem);
+            }
+            
+            // Remove coordinate display
+            if (coordinateDisplay) {
+                coordinateDisplay.element.remove();
             }
             
             // Call 3d-force-graph destructor

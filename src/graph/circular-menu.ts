@@ -280,7 +280,16 @@ export function createCircularMenu(
         dragHandle.style.cursor = 'move';
         
         const dialogDragStart = (e: MouseEvent) => {
-            if (dragHandle.contains(e.target as HTMLElement)) {
+            const target = e.target as HTMLElement;
+            // Don't start dragging if clicking on interactive elements
+            if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || 
+                target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' ||
+                target.closest('input') || target.closest('button') || 
+                target.closest('select') || target.closest('textarea')) {
+                return;
+            }
+            
+            if (dragHandle.contains(target)) {
                 dialogInitialX = e.clientX - dialogOffsetX;
                 dialogInitialY = e.clientY - dialogOffsetY;
                 isDraggingDialog = true;
@@ -292,7 +301,7 @@ export function createCircularMenu(
             dialogInitialX = dialogX;
             dialogInitialY = dialogY;
             isDraggingDialog = false;
-            element.style.cursor = 'auto';
+            element.style.cursor = 'move';
         };
         
         const dialogDrag = (e: MouseEvent) => {
@@ -609,8 +618,9 @@ export function createCircularMenu(
         
         menu.appendChild(dialog);
         
-        // Make dialog draggable
-        const cleanupDrag = makeDraggable(dialog, positionEditor.querySelector('h4') as HTMLElement);
+        // Make dialog draggable - add cursor style to the entire dialog
+        dialog.style.cursor = 'move';
+        const cleanupDrag = makeDraggable(dialog);
         
         // Store cleanup function on dialog for later use
         (dialog as any).cleanupDrag = cleanupDrag;

@@ -425,49 +425,61 @@ export function applyLockedNodes(Graph: any, parameters: GraphParameters, locked
 export function applyHyperdimensionPositions(
     Graph: any,
     hyperdimensionManager: HyperdimensionManager,
-    lockedNodes: Set<string>
+    lockedNodes: Set<string>,
+    delay: number = 100
 ): void {
     // Apply positions after a short delay to ensure graph is initialized
     setTimeout(() => {
         const nodes = Graph.graphData().nodes;
-        let hasLockedNodes = false;
+        let nodesUpdated = false;
+        
+        // Clear the locked nodes set - we'll rebuild it based on hyperdimension data
+        lockedNodes.clear();
         
         nodes.forEach((node: any) => {
             const position = getNode3DPosition(hyperdimensionManager, node.id);
             
-            // Only lock dimensions that have positions
+            // Apply positions from hyperdimensions or unlock if no position exists
             if (position.x !== null) {
                 node.fx = position.x;
-                hasLockedNodes = true;
+                nodesUpdated = true;
             } else {
-                node.fx = undefined; // Unlock if no position
+                delete node.fx;
             }
             
             if (position.y !== null) {
                 node.fy = position.y;
-                hasLockedNodes = true;
+                nodesUpdated = true;
             } else {
-                node.fy = undefined;
+                delete node.fy;
             }
             
             if (position.z !== null) {
                 node.fz = position.z;
-                hasLockedNodes = true;
+                nodesUpdated = true;
             } else {
-                node.fz = undefined;
+                delete node.fz;
             }
             
-            // Track nodes that have any locked dimension
-            if (position.x !== null || position.y !== null || position.z !== null) {
+            // If the node has any position in hyperdimensions (not just in current mapping),
+            // add it to locked nodes
+            const nodePosition = hyperdimensionManager.nodePositions.get(node.id);
+            if (nodePosition && nodePosition.positions.size > 0) {
                 lockedNodes.add(String(node.id));
-            } else {
-                lockedNodes.delete(String(node.id));
             }
         });
         
-        // Force a re-render to show lock indicators if any nodes are locked
-        if (hasLockedNodes) {
+        // Force a re-render to update node visuals
+        if (nodesUpdated || lockedNodes.size > 0) {
+            // Update node objects to show lock indicators
             Graph.nodeThreeObject(Graph.nodeThreeObject());
+            
+            // Force the simulation to update node positions immediately
+            Graph.d3ReheatSimulation();
+            // Run a few ticks to apply the new positions
+            for (let i = 0; i < 10; i++) {
+                Graph.tickFrame();
+            }
         }
-    }, 1000);
+    }, delay);
 }
