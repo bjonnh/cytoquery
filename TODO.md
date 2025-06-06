@@ -1,6 +1,4 @@
 - When starting, the buttons for the path finding are shown despite no begin/end nodes beeing selected
-- Display what are the X Y Z axis of the hyperdimensions just above the Axis representation
+- `Display what are the X Y Z axis of the hyperdimensions just above the Axis representation`
 - Cannot move the edit X,Y,Z window that appears when editing a node
 - When moving a node, should show the coordinates on the screen (not sure where would be good)
-- Clean up all those reimports in src
-- Move the CSS from /src/lib/3d-force-graph.ts to /styles.css

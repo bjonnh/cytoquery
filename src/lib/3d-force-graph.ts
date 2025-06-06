@@ -16,64 +16,6 @@ import ThreeRenderObjects, { ThreeRenderObjectsInstance } from 'three-render-obj
 import accessorFn from 'accessor-fn';
 import Kapsule, { KapsuleInstance } from 'kapsule';
 
-interface StyleInjectOptions {
-  insertAt?: 'top' | 'bottom';
-}
-
-function styleInject(css: string, ref: StyleInjectOptions = {}): void {
-  const { insertAt } = ref;
-  if (typeof document === 'undefined') {
-    return;
-  }
-  const head = document.head || document.getElementsByTagName('head')[0];
-  const style = document.createElement('style');
-  style.type = 'text/css';
-  if (insertAt === 'top') {
-    if (head.firstChild) {
-      head.insertBefore(style, head.firstChild);
-    } else {
-      head.appendChild(style);
-    }
-  } else {
-    head.appendChild(style);
-  }
-  if ((style as any).styleSheet) {
-    (style as any).styleSheet.cssText = css;
-  } else {
-    style.appendChild(document.createTextNode(css));
-  }
-}
-
-const css = `.graph-info-msg {
-  top: 50%;
-  width: 100%;
-  text-align: center;
-  color: lavender;
-  opacity: 0.7;
-  font-size: 22px;
-  position: absolute;
-  font-family: Sans-serif;
-}
-
-.scene-container .clickable {
-  cursor: pointer;
-}
-
-.scene-container .grabbable {
-  cursor: move;
-  cursor: grab;
-  cursor: -moz-grab;
-  cursor: -webkit-grab;
-}
-
-.scene-container .grabbable:active {
-  cursor: grabbing;
-  cursor: -moz-grabbing;
-  cursor: -webkit-grabbing;
-}`;
-
-styleInject(css);
-
 type Accessor<In, Out> = Out | string | ((obj: In) => Out);
 type ObjAccessor<T, InT = object> = Accessor<InT, T>;
 type Label = string | HTMLElement;

@@ -30,7 +30,7 @@ import {
     removeNodePositions
 } from './hyperdimension-manager';
 import { createHyperdimensionPanel, HyperdimensionUICallbacks } from './hyperdimension-ui';
-import { createAxisIndicatorSystem, disposeAxisIndicator } from './axis-indicator';
+import { createAxisIndicatorSystem, disposeAxisIndicator, updateAxisLabels } from './axis-indicator';
 
 // Interface for platform-specific implementations
 export interface GraphPlatformAdapter {
@@ -407,6 +407,26 @@ export function initGraph(
 
     // Create axis indicator system (separate renderer for overlay)
     const axisIndicatorSystem = createAxisIndicatorSystem(container);
+    
+    // Function to update axis labels based on current mapping
+    const updateAxisIndicatorLabels = () => {
+        if (uiState.hyperdimensionManager && axisIndicatorSystem) {
+            const manager = uiState.hyperdimensionManager;
+            
+            // Get axis names for current mapping
+            const xAxisName = manager.axisMapping.xAxis ? 
+                manager.axes.get(manager.axisMapping.xAxis)?.name || null : null;
+            const yAxisName = manager.axisMapping.yAxis ? 
+                manager.axes.get(manager.axisMapping.yAxis)?.name || null : null;
+            const zAxisName = manager.axisMapping.zAxis ? 
+                manager.axes.get(manager.axisMapping.zAxis)?.name || null : null;
+            
+            updateAxisLabels(axisIndicatorSystem, xAxisName, yAxisName, zAxisName);
+        }
+    };
+    
+    // Initial update of axis labels
+    updateAxisIndicatorLabels();
 
     // Apply locked nodes from parameters
     applyLockedNodes(Graph, parameters, uiState.lockedNodes);
@@ -657,6 +677,9 @@ export function initGraph(
     setupIdleRotationButton();
     setupFPSLimiterButton();
     
+    // Initialize path UI visibility
+    updatePathUI();
+    
     // Create hyperdimension panel
     let hyperdimensionPanel: { panel: HTMLDivElement; updateUI: () => void } | null = null;
     
@@ -694,6 +717,8 @@ export function initGraph(
             if (hyperdimensionPanel) {
                 hyperdimensionPanel.updateUI();
             }
+            // Update axis indicator labels in case the new axis is mapped
+            updateAxisIndicatorLabels();
         },
         onAxisDeleted: () => {
             hasUnsavedChanges = true;
@@ -705,6 +730,8 @@ export function initGraph(
             if (hyperdimensionPanel) {
                 hyperdimensionPanel.updateUI();
             }
+            // Update axis indicator labels in case the deleted axis was mapped
+            updateAxisIndicatorLabels();
         },
         onAxisMappingChanged: () => {
             hasUnsavedChanges = true;
@@ -716,6 +743,8 @@ export function initGraph(
             if (uiState.hyperdimensionManager) {
                 applyHyperdimensionPositions(Graph, uiState.hyperdimensionManager, uiState.lockedNodes);
             }
+            // Update axis indicator labels
+            updateAxisIndicatorLabels();
         },
         onNodePositionChanged: () => {
             hasUnsavedChanges = true;

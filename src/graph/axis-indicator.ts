@@ -6,6 +6,7 @@ export interface AxisIndicatorSystem {
     scene: THREE.Scene;
     camera: THREE.OrthographicCamera;
     axisGroup: THREE.Group;
+    labelsContainer: HTMLDivElement;
 }
 
 /**
@@ -20,14 +21,39 @@ export function createAxisIndicatorSystem(parentContainer: HTMLElement): AxisInd
     container.style.bottom = '10px';
     container.style.left = '10px';
     container.style.width = '120px';
-    container.style.height = '120px';
+    container.style.height = '150px'; // Increased height for labels
     container.style.zIndex = '1000';
     container.style.pointerEvents = 'none';
     container.style.background = 'rgba(0, 0, 0, 0.5)';
     container.style.borderRadius = '8px';
     container.style.border = '1px solid rgba(255, 255, 255, 0.1)';
     parentContainer.appendChild(container);
+    
+    // Create labels container above the axis indicator
+    const labelsContainer = document.createElement('div');
+    labelsContainer.className = 'axis-labels-container';
+    labelsContainer.style.position = 'absolute';
+    labelsContainer.style.top = '5px';
+    labelsContainer.style.left = '0';
+    labelsContainer.style.right = '0';
+    labelsContainer.style.height = '25px';
+    labelsContainer.style.fontSize = '10px';
+    labelsContainer.style.color = 'rgba(255, 255, 255, 0.8)';
+    labelsContainer.style.textAlign = 'center';
+    labelsContainer.style.lineHeight = '12px';
+    labelsContainer.style.padding = '0 5px';
+    labelsContainer.style.fontFamily = 'monospace';
+    container.appendChild(labelsContainer);
 
+    // Create a wrapper for the renderer to position it below the labels
+    const rendererWrapper = document.createElement('div');
+    rendererWrapper.style.position = 'absolute';
+    rendererWrapper.style.bottom = '0';
+    rendererWrapper.style.left = '0';
+    rendererWrapper.style.width = '120px';
+    rendererWrapper.style.height = '120px';
+    container.appendChild(rendererWrapper);
+    
     // Create a separate renderer for the axis indicator
     const renderer = new THREE.WebGLRenderer({ 
         alpha: true, 
@@ -37,7 +63,7 @@ export function createAxisIndicatorSystem(parentContainer: HTMLElement): AxisInd
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
-    container.appendChild(renderer.domElement);
+    rendererWrapper.appendChild(renderer.domElement);
     
     // Create a separate scene
     const scene = new THREE.Scene();
@@ -68,7 +94,7 @@ export function createAxisIndicatorSystem(parentContainer: HTMLElement): AxisInd
     directionalLight.position.set(1, 1, 1);
     scene.add(directionalLight);
     
-    return { container, renderer, scene, camera, axisGroup };
+    return { container, renderer, scene, camera, axisGroup, labelsContainer };
 }
 
 /**
@@ -139,6 +165,25 @@ export function createAxisIndicator(): THREE.Group {
     group.add(zLabel);
     
     return group;
+}
+
+/**
+ * Updates the axis labels display
+ */
+export function updateAxisLabels(
+    axisIndicatorSystem: AxisIndicatorSystem,
+    xLabel: string | null,
+    yLabel: string | null,
+    zLabel: string | null
+): void {
+    const labels = [];
+    if (xLabel) labels.push(`<span style="color: #ff0000">X:</span> ${xLabel}`);
+    if (yLabel) labels.push(`<span style="color: #00ff00">Y:</span> ${yLabel}`);
+    if (zLabel) labels.push(`<span style="color: #0080ff">Z:</span> ${zLabel}`);
+    
+    axisIndicatorSystem.labelsContainer.innerHTML = labels.length > 0 
+        ? labels.join('<br>')
+        : '<span style="color: rgba(255,255,255,0.5)">No axes mapped</span>';
 }
 
 /**

@@ -5,7 +5,7 @@ import {
     createAxis, 
     setNodePosition,
     removeNodePositions
-} from './hyperdimension-manager';
+} from '../../graph/hyperdimension-manager';
 
 describe('hyperdimension node unlocking', () => {
     it('should remove all position data when node is unlocked', () => {

@@ -13,8 +13,8 @@ import {
     deserializeHyperdimensionData,
     getAxesForSystem,
     validateAxisMapping
-} from './hyperdimension-manager';
-import { HyperdimensionManager } from '../types/hyperdimensions';
+} from '../../graph/hyperdimension-manager';
+import { HyperdimensionManager } from '../../types/hyperdimensions';
 
 describe('HyperdimensionManager', () => {
     let manager: HyperdimensionManager;

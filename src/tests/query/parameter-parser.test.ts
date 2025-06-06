@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseParametersAndQuery, formatParameters } from './parameter-parser';
-import { GraphParameters } from '../types/graph';
+import { parseParametersAndQuery, formatParameters } from '../../query/parameter-parser';
+import { GraphParameters } from '../../types/graph';
 
 describe('Parameter Parser - Hyperdimensions', () => {
     it('should parse hyperdimension data correctly', () => {
