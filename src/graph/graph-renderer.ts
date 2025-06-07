@@ -80,24 +80,16 @@ export function createGraph(
             const linkColor = link.color || '#ccc';
             const linkOpacity = link.opacity !== undefined ? link.opacity : (currentParams.linkStyle?.opacity || 0.2);
             
-            // Create a glass-like material that works well with bloom
-            const material = new THREE.MeshPhysicalMaterial({
+            // Use MeshBasicMaterial for better performance with transparency
+            const material = new THREE.MeshBasicMaterial({
                 color: linkColor,
                 transparent: true,
                 opacity: linkOpacity,
-                metalness: 0,
-                roughness: 0,
-                transmission: 0.5, // Glass-like transmission
-                clearcoat: 0.5,
-                clearcoatRoughness: 0,
-                ior: 1.2, // Index of refraction
-                thickness: 0.5, // For transmission effect
-                attenuationColor: new THREE.Color(linkColor),
-                attenuationDistance: 10,
+                // Key settings for bloom compatibility:
+                depthWrite: false, // Allow proper transparency sorting
                 side: THREE.DoubleSide,
-                depthWrite: true, // Important for bloom compatibility
-                // Use premultiplied alpha for better bloom interaction
-                blending: THREE.NormalBlending
+                // Use additive blending for a glow-like effect that works well with bloom
+                blending: linkOpacity < 0.5 ? THREE.AdditiveBlending : THREE.NormalBlending
             });
             
             return material;
