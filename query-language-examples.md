@@ -101,3 +101,67 @@ link_to("index"), link_from("hub") => color("green"), shape("cube")
 # Mix named and inline actions
 tagged("archived") => :subtle, material("plastic")
 ```
+
+## Edge Styling
+
+### Edge Query Syntax
+The query language now supports styling edges (links) based on their properties:
+
+- `edge(default)` - Matches regular links (not from frontmatter properties)
+- `edge("propertyname")` - Matches links from a specific frontmatter property (case-insensitive)
+- `edge(*)` - Matches all edges (catch-all for both default and property edges)
+
+### Edge Methods
+You can filter edges further using methods:
+
+- `.includes("value")` - Matches edges where source or target contains the value
+- `.not_includes("value")` - Matches edges where neither source nor target contains the value
+
+### Edge Actions
+Available actions for edges:
+
+- `color("color")` - Sets the edge color
+- `width(number)` - Sets the edge width (0.1 to 10)
+- `opacity(number)` - Sets the edge opacity (0 to 1)
+
+### Notes
+- Property matching is **case-insensitive**: `edge("Category")` will match frontmatter properties named "category", "Category", or "CATEGORY"
+- The `edge(*)` syntax is useful for applying base styles to all edges
+
+### Examples
+
+```
+# Style all edges (catch-all)
+edge(*) => opacity(0.3)
+
+# Style all default links
+edge(default) => color("#999999")
+
+# Style links from a specific frontmatter property (case-insensitive)
+edge("related") => color("#00FF00"), width(2)
+edge("Category") => color("#0099FF")  # Matches category, Category, CATEGORY, etc.
+
+# Style links from 'references' property that include 'main'
+edge("references").includes("main") => color("#FF0000"), width(3), opacity(0.8)
+
+# Style all edges that include certain text
+edge(*).includes("important") => color("#FFD700"), width(3)
+
+# Style default links that don't include 'test'
+edge(default).not_includes("test") => opacity(0.5)
+
+# Combine multiple edge conditions
+edge("important"), edge("critical") => color("#FF0000"), width(4)
+
+# Complete example with nodes and edges
+default => color("#CCCCCC")
+tagged("important") => color("yellow"), size(3)
+
+# Base style for all edges
+edge(*) => opacity(0.2)
+
+# Override for specific edge types
+edge(default) => color("#666666")
+edge("related") => color("#00FF00"), width(2)
+edge("references").includes("index") => color("#FF0000"), width(3), opacity(0.8)
+```

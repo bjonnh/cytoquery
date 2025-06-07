@@ -824,4 +824,107 @@ tagged("A"), tagged("B") => color("blue"), shape("cube")`;
       });
     });
   });
+
+  describe('edge queries', () => {
+    it('should parse edge() syntax with default edges', () => {
+      const query = 'edge(default) => color("#FF0000")';
+      parser.parseQuery(query);
+      
+      edges.addSourceTarget('node1', 'node2', 'default');
+      const edgeList = edges.values();
+      
+      parser.applyEdgeRules(edgeList);
+      
+      expect(edgeList[0].color).toBe('#FF0000');
+    });
+
+    it('should parse edge() syntax with property edges', () => {
+      const query = 'edge("related") => color("#00FF00")';
+      parser.parseQuery(query);
+      
+      edges.addSourceTarget('node1', 'node2', 'property', 'related');
+      edges.addSourceTarget('node3', 'node4', 'property', 'other');
+      const edgeList = edges.values();
+      
+      parser.applyEdgeRules(edgeList);
+      
+      expect(edgeList[0].color).toBe('#00FF00');
+      expect(edgeList[1].color).toBeUndefined();
+    });
+
+    it('should parse edge() with includes() method', () => {
+      const query = 'edge("related").includes("node1") => color("#0000FF")';
+      parser.parseQuery(query);
+      
+      edges.addSourceTarget('node1', 'node2', 'property', 'related');
+      edges.addSourceTarget('node3', 'node4', 'property', 'related');
+      const edgeList = edges.values();
+      
+      parser.applyEdgeRules(edgeList);
+      
+      expect(edgeList[0].color).toBe('#0000FF');
+      expect(edgeList[1].color).toBeUndefined();
+    });
+
+    it('should parse edge() with not_includes() method', () => {
+      const query = 'edge(default).not_includes("test") => color("#FF00FF")';
+      parser.parseQuery(query);
+      
+      edges.addSourceTarget('node1', 'node2', 'default');
+      edges.addSourceTarget('test1', 'test2', 'default');
+      const edgeList = edges.values();
+      
+      parser.applyEdgeRules(edgeList);
+      
+      expect(edgeList[0].color).toBe('#FF00FF');
+      expect(edgeList[1].color).toBeUndefined();
+    });
+
+    it('should apply multiple edge actions', () => {
+      const query = 'edge("important").includes("main") => color("#FF0000"), width(3), opacity(0.8)';
+      parser.parseQuery(query);
+      
+      edges.addSourceTarget('main', 'secondary', 'property', 'important');
+      const edgeList = edges.values();
+      
+      parser.applyEdgeRules(edgeList);
+      
+      expect(edgeList[0].color).toBe('#FF0000');
+      expect(edgeList[0].width).toBe(3);
+      expect(edgeList[0].opacity).toBe(0.8);
+    });
+
+    it('should combine edge and node queries', () => {
+      const query = `
+        default => color("#000000")
+        edge("link") => color("#FF0000")
+        tagged("important") => color("#00FF00")
+      `;
+      parser.parseQuery(query);
+      
+      const node: Node = { id: 'test', label: 'Test' };
+      edges.addSourceTarget('test', 'other', 'property', 'link');
+      
+      parser.applyRules([node]);
+      parser.applyEdgeRules(edges.values());
+      
+      expect(node.color).toBe('#000000');
+      expect(edges.values()[0].color).toBe('#FF0000');
+    });
+
+    it('should validate edge query syntax', () => {
+      const validQueries = [
+        'edge(default) => color("red")',
+        'edge("property") => color("blue")',
+        'edge(default).includes("value") => color("green")',
+        'edge("prop").not_includes("value") => width(2)',
+        'edge("link"), edge(default) => opacity(0.5)'
+      ];
+
+      validQueries.forEach(query => {
+        const errors = parser.getParseErrors(query);
+        expect(errors).toEqual([]);
+      });
+    });
+  });
 });

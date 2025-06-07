@@ -28,6 +28,8 @@ export function init3DForceGraph(
         if (parseErrors.length === 0) {
             queryParser.parseQuery(queryText);
             queryParser.applyRules(nodeSet.values());
+            // Apply edge rules to edges
+            queryParser.applyEdgeRules(edgeSet.values());
         }
     }
 
@@ -62,7 +64,10 @@ export function init3DForceGraph(
 
     const graphLinks = edgeSet.values().map(edge => ({
         source: edge.source,
-        target: edge.target
+        target: edge.target,
+        color: edge.color,
+        width: edge.width,
+        opacity: edge.opacity
     }));
 
     const graphData: GraphData = {

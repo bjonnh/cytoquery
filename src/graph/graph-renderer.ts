@@ -45,7 +45,7 @@ export function createGraph(
             if (uiState.currentPath.length > 1) {
                 const srcId = typeof link.source === 'string' ? link.source : link.source.id;
                 const tgtId = typeof link.target === 'string' ? link.target : link.target.id;
-                
+
                 // Find consecutive nodes in path that match this link
                 for (let i = 0; i < uiState.currentPath.length - 1; i++) {
                     if ((uiState.currentPath[i] === srcId && uiState.currentPath[i + 1] === tgtId) ||
@@ -54,25 +54,54 @@ export function createGraph(
                     }
                 }
             }
-            return '#ccc'; // Default color
+            // Use color from edge query styling if available
+            return link.color || '#ccc'; // Default color
         })
         .linkWidth((link: any) => {
             // Check if this link is part of the current path
             if (uiState.currentPath.length > 1) {
                 const srcId = typeof link.source === 'string' ? link.source : link.source.id;
                 const tgtId = typeof link.target === 'string' ? link.target : link.target.id;
-                
+
                 // Find consecutive nodes in path that match this link
                 for (let i = 0; i < uiState.currentPath.length - 1; i++) {
                     if ((uiState.currentPath[i] === srcId && uiState.currentPath[i + 1] === tgtId) ||
                         (uiState.currentPath[i] === tgtId && uiState.currentPath[i + 1] === srcId)) {
-                        return (currentParams.linkStyle?.width || 1) * 8; // 8x thicker for path links
+                        return (link.width || currentParams.linkStyle?.width || 1) * 8; // 8x thicker for path links
                     }
                 }
             }
-            return currentParams.linkStyle?.width || 1; // Default width
+            // Use width from edge query styling if available
+            return link.width || currentParams.linkStyle?.width || 1; // Default width
         })
-        .linkOpacity(currentParams.linkStyle?.opacity || 0.2)
+        // Use custom material for links to support transparency with bloom
+        .linkMaterial((link: any) => {
+            // Get the link color and opacity
+            const linkColor = link.color || '#ccc';
+            const linkOpacity = link.opacity !== undefined ? link.opacity : (currentParams.linkStyle?.opacity || 0.2);
+            
+            // Create a glass-like material that works well with bloom
+            const material = new THREE.MeshPhysicalMaterial({
+                color: linkColor,
+                transparent: true,
+                opacity: linkOpacity,
+                metalness: 0,
+                roughness: 0,
+                transmission: 0.5, // Glass-like transmission
+                clearcoat: 0.5,
+                clearcoatRoughness: 0,
+                ior: 1.2, // Index of refraction
+                thickness: 0.5, // For transmission effect
+                attenuationColor: new THREE.Color(linkColor),
+                attenuationDistance: 10,
+                side: THREE.DoubleSide,
+                depthWrite: true, // Important for bloom compatibility
+                // Use premultiplied alpha for better bloom interaction
+                blending: THREE.NormalBlending
+            });
+            
+            return material;
+        })
         // Apply performance parameters
         .cooldownTime(parameters.performance?.cooldownTime || 10000)
         .warmupTicks(parameters.performance?.warmupTicks || 0)

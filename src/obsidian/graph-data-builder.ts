@@ -1,4 +1,4 @@
-import { App, CachedMetadata, getLinkpath, TFile } from 'obsidian';
+import { App, CachedMetadata, getLinkpath, TFile, FrontmatterLinkCache } from 'obsidian';
 import { NodeSet, EdgeSet } from '../utils/index';
 
 export function buildGraphData(
@@ -46,7 +46,7 @@ export function buildGraphData(
                     }
                     
                     // Create edge from file to tag
-                    edgeSet.addSourceTarget(file.path, tagNodeId);
+                    edgeSet.addSourceTarget(file.path, tagNodeId, 'default');
                 }
             }
 
@@ -71,7 +71,7 @@ export function buildGraphData(
                         }
                         
                         // Create edge from file to tag
-                        edgeSet.addSourceTarget(file.path, tagNodeId);
+                        edgeSet.addSourceTarget(file.path, tagNodeId, 'default');
                     }
                 }
             }
@@ -90,7 +90,7 @@ export function buildGraphData(
                         });
                         // Create an edge between file and target
                         if (file.path != target.path)
-                            edgeSet.addSourceTarget(file.path, target.path);
+                            edgeSet.addSourceTarget(file.path, target.path, 'default');
 
                         // Get and store target metadata if not already stored
                         if (!metadataMap.has(target.path)) {
@@ -106,7 +106,7 @@ export function buildGraphData(
                             label: link.link
                         });
                         // Create an edge between file and link
-                        edgeSet.addSourceTarget(file.path, link.link);
+                        edgeSet.addSourceTarget(file.path, link.link, 'default');
                     }
                 }
             }
@@ -125,7 +125,7 @@ export function buildGraphData(
                         });
                         // Create an edge between file and target
                         if (file.path != target.path)
-                            edgeSet.addSourceTarget(file.path, target.path);
+                            edgeSet.addSourceTarget(file.path, target.path, 'property', (link as FrontmatterLinkCache).key);
 
                         // Get and store target metadata if not already stored
                         if (!metadataMap.has(target.path)) {
@@ -141,7 +141,7 @@ export function buildGraphData(
                             label: link.link
                         });
                         // Create an edge between file and link
-                        edgeSet.addSourceTarget(file.path, link.link);
+                        edgeSet.addSourceTarget(file.path, link.link, 'property', (link as FrontmatterLinkCache).key);
                     }
                 }
             }

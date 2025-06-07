@@ -12,6 +12,8 @@ const Equals = createToken({ name: "Equals", pattern: /=/ });
 const LParen = createToken({ name: "LParen", pattern: /\(/ });
 const RParen = createToken({ name: "RParen", pattern: /\)/ });
 const Comma = createToken({ name: "Comma", pattern: /,/ });
+const Dot = createToken({ name: "Dot", pattern: /\./ });
+const Star = createToken({ name: "Star", pattern: /\*/ });
 const WhiteSpace = createToken({ name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED });
 
 // Token array
@@ -24,6 +26,8 @@ const allTokens = [
   RParen,
   StringLiteral,
   Comma,
+  Dot,
+  Star,
   NamedParameter, // Must come before Identifier to properly match :name patterns
   Identifier
 ];
@@ -61,6 +65,7 @@ interface ConditionCstNode {
     LParen?: IToken[];
     StringLiteral?: IToken[];
     RParen?: IToken[];
+    Dot?: IToken[];
   };
 }
 
@@ -138,13 +143,25 @@ class QueryGrammar extends CstParser {
         this.CONSUME(Identifier);
         this.OPTION(() => {
           this.CONSUME(LParen);
-          this.CONSUME(StringLiteral);
+          this.OR2([
+            { ALT: () => this.CONSUME(StringLiteral) },
+            { ALT: () => this.CONSUME2(Identifier, { LABEL: "bareIdentifier" }) },
+            { ALT: () => this.CONSUME(Star, { LABEL: "star" }) }
+          ]);
           this.CONSUME(RParen);
+        });
+        // Optional chained method (e.g., edge("property").includes("value"))
+        this.OPTION2(() => {
+          this.CONSUME(Dot);
+          this.CONSUME3(Identifier, { LABEL: "chainedMethod" });
+          this.CONSUME2(LParen);
+          this.CONSUME2(StringLiteral);
+          this.CONSUME2(RParen);
         });
       }},
       { ALT: () => {
         // Node name selector: just a string literal
-        this.CONSUME2(StringLiteral);
+        this.CONSUME3(StringLiteral);
       }}
     ]);
   });
@@ -186,9 +203,16 @@ export interface QueryRule {
   action: (node: Node) => void;
 }
 
+// Edge query rule interface
+export interface EdgeQueryRule {
+  condition: (edge: any, metadata: Map<string, CachedMetadata>) => boolean;
+  action: (edge: any) => void;
+}
+
 // Enhanced Query Parser using Chevrotain
 export class QueryParser {
   private rules: QueryRule[] = [];
+  private edgeRules: EdgeQueryRule[] = [];
   private namedParameters: Map<string, { type: string; value: string }[]> = new Map();
   private metadata: Map<string, CachedMetadata>;
   private edges: EdgeSet;
@@ -201,6 +225,7 @@ export class QueryParser {
   parseQuery(queryText: string): void {
     // Clear existing rules and named parameters
     this.rules = [];
+    this.edgeRules = [];
     this.namedParameters.clear();
 
     // Tokenize
@@ -241,25 +266,38 @@ export class QueryParser {
     const conditions = this.extractConditions(rule.children.conditionList[0]);
     const actions = this.extractActionsFromList(rule.children.actionList[0]);
 
-    const queryRule: QueryRule = {
-      condition: (node: Node, metadata: Map<string, CachedMetadata>) => {
-        return this.evaluateConditions(node, conditions, metadata);
-      },
-      action: (node: Node) => {
-        this.applyActions(node, actions);
-      }
-    };
-
-    this.rules.push(queryRule);
+    // Check if this is an edge rule
+    const isEdgeRule = conditions.some(cond => cond.type === 'edge');
+    
+    if (isEdgeRule) {
+      const edgeQueryRule: EdgeQueryRule = {
+        condition: (edge: any, metadata: Map<string, CachedMetadata>) => {
+          return this.evaluateEdgeConditions(edge, conditions, metadata);
+        },
+        action: (edge: any) => {
+          this.applyEdgeActions(edge, actions);
+        }
+      };
+      this.edgeRules.push(edgeQueryRule);
+    } else {
+      const queryRule: QueryRule = {
+        condition: (node: Node, metadata: Map<string, CachedMetadata>) => {
+          return this.evaluateConditions(node, conditions, metadata);
+        },
+        action: (node: Node) => {
+          this.applyActions(node, actions);
+        }
+      };
+      this.rules.push(queryRule);
+    }
   }
 
-  private extractConditions(conditionList: ConditionListCstNode): Array<{ type: string; value?: string }> {
-    const conditions: Array<{ type: string; value?: string }> = [];
+  private extractConditions(conditionList: ConditionListCstNode): Array<{ type: string; value?: string; chainedMethod?: string; chainedValue?: string }> {
+    const conditions: Array<{ type: string; value?: string; chainedMethod?: string; chainedValue?: string }> = [];
     
     if (conditionList.children.condition) {
-      conditionList.children.condition.forEach(cond => {
+      conditionList.children.condition.forEach((cond: any) => {
         // Check if it's a string literal condition (node name selector)
-        // It will be in StringLiteral2 due to CONSUME2
         const stringLiterals = cond.children.StringLiteral || [];
         const hasNodeNameSelector = stringLiterals.length > 0 && !cond.children.Identifier;
         
@@ -271,11 +309,33 @@ export class QueryParser {
           const type = cond.children.Identifier[0].image;
           let value: string | undefined;
           
-          if (stringLiterals.length > 0) {
+          // Check for parameter - prefer bareIdentifier first (for 'default')
+          if (cond.children.bareIdentifier && cond.children.bareIdentifier[0]) {
+            value = cond.children.bareIdentifier[0].image; // Bare identifier like 'default'
+          } else if (cond.children.star && cond.children.star[0]) {
+            value = '*'; // Star for catch-all
+          } else if (stringLiterals.length > 0) {
+            // Use first StringLiteral as parameter
             value = stringLiterals[0].image.slice(1, -1); // Remove quotes
           }
           
-          conditions.push({ type, value });
+          // Check for chained method (e.g., .includes())
+          let chainedMethod: string | undefined;
+          let chainedValue: string | undefined;
+          
+          if (cond.children.chainedMethod && cond.children.chainedMethod[0]) {
+            chainedMethod = cond.children.chainedMethod[0].image;
+            // When there's a quoted parameter AND a chained method,
+            // the second StringLiteral is the chained method's parameter
+            if (stringLiterals.length > 1) {
+              chainedValue = stringLiterals[1].image.slice(1, -1);
+            } else if (stringLiterals.length > 0 && (cond.children.bareIdentifier || cond.children.star)) {
+              // When parameter is bare identifier or star, first StringLiteral is chained value
+              chainedValue = stringLiterals[0].image.slice(1, -1);
+            }
+          }
+          
+          conditions.push({ type, value, chainedMethod, chainedValue });
         }
       });
     }
@@ -320,7 +380,7 @@ export class QueryParser {
     return this.extractActions(actionList);
   }
 
-  private evaluateConditions(node: Node, conditions: Array<{ type: string; value?: string }>, metadata: Map<string, CachedMetadata>): boolean {
+  private evaluateConditions(node: Node, conditions: Array<{ type: string; value?: string; chainedMethod?: string; chainedValue?: string }>, metadata: Map<string, CachedMetadata>): boolean {
     // Comma-separated conditions use OR logic - any match triggers the action
     return conditions.some(condition => {
       switch (condition.type) {
@@ -359,6 +419,69 @@ export class QueryParser {
     });
   }
 
+  private evaluateEdgeConditions(edge: any, conditions: Array<{ type: string; value?: string; chainedMethod?: string; chainedValue?: string }>, metadata: Map<string, CachedMetadata>): boolean {
+    // Comma-separated conditions use OR logic - any match triggers the action
+    return conditions.some(condition => {
+      if (condition.type === 'edge') {
+        const property = condition.value;
+        const method = condition.chainedMethod;
+        const value = condition.chainedValue;
+        
+        if (property === 'default') {
+          // Match default (non-property) edges
+          if (!edge.type || edge.type === 'default') {
+            return this.evaluateEdgeMethod(edge, method, value);
+          }
+        } else if (property === '*') {
+          // Match all edges (catch-all)
+          return this.evaluateEdgeMethod(edge, method, value);
+        } else if (property) {
+          // Match property edges with specific property name (case-insensitive)
+          // Handle both exact matches and array property matches (e.g., "category" matches "category.0", "category.1", etc.)
+          let isPropertyMatch = false;
+          
+          if (edge.type === 'property' && edge.property) {
+            const edgePropLower = edge.property.toLowerCase();
+            const conditionPropLower = property.toLowerCase();
+            
+            // Exact match
+            isPropertyMatch = edgePropLower === conditionPropLower;
+            
+            // Array property match: "category" should match "category.0", "category.1", etc.
+            if (!isPropertyMatch) {
+              const arrayPropPattern = new RegExp(`^${conditionPropLower}\\.\\d+$`);
+              isPropertyMatch = arrayPropPattern.test(edgePropLower);
+            }
+          }
+          
+          if (isPropertyMatch) {
+            return this.evaluateEdgeMethod(edge, method, value);
+          }
+        }
+      }
+      return false;
+    });
+  }
+  
+  private evaluateEdgeMethod(edge: any, method?: string, value?: string): boolean {
+    if (!method) return true; // No method means just match the edge type
+    
+    switch (method) {
+      case 'includes':
+        if (!value) return false;
+        // Check if source or target includes the value
+        return edge.source.toLowerCase().includes(value.toLowerCase()) ||
+               edge.target.toLowerCase().includes(value.toLowerCase());
+      case 'not_includes':
+        if (!value) return true;
+        // Check if neither source nor target includes the value
+        return !edge.source.toLowerCase().includes(value.toLowerCase()) &&
+               !edge.target.toLowerCase().includes(value.toLowerCase());
+      default:
+        return false;
+    }
+  }
+
   private applyActions(node: Node, actions: Array<{ type: string; value: string }>): void {
     actions.forEach(action => {
       switch (action.type) {
@@ -382,6 +505,28 @@ export class QueryParser {
           const size = parseFloat(action.value);
           if (!isNaN(size)) {
             node.size = Math.max(0.1, Math.min(10, size));
+          }
+          break;
+      }
+    });
+  }
+
+  private applyEdgeActions(edge: any, actions: Array<{ type: string; value: string }>): void {
+    actions.forEach(action => {
+      switch (action.type) {
+        case 'color':
+          edge.color = action.value;
+          break;
+        case 'width':
+          const width = parseFloat(action.value);
+          if (!isNaN(width)) {
+            edge.width = Math.max(0.1, Math.min(10, width));
+          }
+          break;
+        case 'opacity':
+          const opacity = parseFloat(action.value);
+          if (!isNaN(opacity)) {
+            edge.opacity = Math.max(0, Math.min(1, opacity));
           }
           break;
       }
@@ -478,6 +623,16 @@ export class QueryParser {
       this.rules.forEach(rule => {
         if (rule.condition(node, this.metadata)) {
           rule.action(node);
+        }
+      });
+    });
+  }
+
+  applyEdgeRules(edges: any[]): void {
+    edges.forEach(edge => {
+      this.edgeRules.forEach(rule => {
+        if (rule.condition(edge, this.metadata)) {
+          rule.action(edge);
         }
       });
     });

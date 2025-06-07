@@ -13,6 +13,11 @@ export interface Edge {
 	id: string;
 	source: string;
 	target: string;
+	type?: 'default' | 'property';
+	property?: string;
+	color?: string;
+	width?: number;
+	opacity?: number;
 }
 
 export class NodeSet {
@@ -43,9 +48,10 @@ export class EdgeSet {
 		this.edges.set(edge.id, edge);
 	}
 
-	addSourceTarget(source: string, target: string): void {
+	addSourceTarget(source: string, target: string, type: 'default' | 'property' = 'default', property?: string): void {
 		const id = `edge-${this.counter++}`;
-		this.edges.set(id, { id, source, target });
+		const edge = { id, source, target, type, property };
+		this.edges.set(id, edge);
 	}
 
 	values(): Edge[] {
