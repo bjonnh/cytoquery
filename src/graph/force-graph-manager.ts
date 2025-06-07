@@ -11,6 +11,7 @@ export function init3DForceGraph(
     graphInstances: Map<string, any>,
     generateRandomStringFromSeed: (input: string) => string,
     publicMode: boolean,
+    fastMode: boolean = false,
     codeBlockElement?: HTMLElement,
     ctx?: any
 ): void {
@@ -90,7 +91,8 @@ export function init3DForceGraph(
                 graphData
             );
         },
-        publicMode
+        publicMode,
+        fastMode
     };
 
     // Use the core graph initialization

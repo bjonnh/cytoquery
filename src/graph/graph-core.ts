@@ -43,6 +43,9 @@ export interface GraphPlatformAdapter {
     
     // Whether to show node names or anonymize them
     publicMode: boolean;
+    
+    // Fast mode disables visual effects for better performance
+    fastMode?: boolean;
 }
 
 export function initGraph(
@@ -369,7 +372,8 @@ export function initGraph(
         currentParams,
         uiState,
         graphCallbacks,
-        menuState
+        menuState,
+        platformAdapter.fastMode || false
     );
 
     // Create coordinate display
@@ -437,8 +441,11 @@ export function initGraph(
         });
     }
 
-    // Add bloom pass
-    const bloomPass = addBloomPass(Graph, graphContainer, parameters);
+    // Add bloom pass (skip in fast mode)
+    let bloomPass = null;
+    if (!platformAdapter.fastMode) {
+        bloomPass = addBloomPass(Graph, graphContainer, parameters);
+    }
 
     // Create axis indicator system (separate renderer for overlay) - always create but maybe hide
     const axisIndicatorSystem = createAxisIndicatorSystem(container);
@@ -488,7 +495,8 @@ export function initGraph(
         idlePreventionInterval: null,
         isFPSLimiterDisabled: false,
         fpsPreventionInterval: null,
-        axisIndicatorSystem: axisIndicatorSystem
+        axisIndicatorSystem: axisIndicatorSystem,
+        fastMode: platformAdapter.fastMode || false
     };
 
     // Update node object tracking in the graph renderer

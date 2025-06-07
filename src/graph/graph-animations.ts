@@ -11,6 +11,7 @@ export interface AnimationState {
     fpsPreventionInterval: number | null;
     axisIndicatorSystem?: AxisIndicatorSystem;
     animationFrameId?: number;
+    fastMode?: boolean;
 }
 
 export function createAnimationLoop(
@@ -20,13 +21,14 @@ export function createAnimationLoop(
     const animate = () => {
         const time = Date.now() * 0.003;
         
-        // Update halo animations for tracked nodes
-        animationState.nodeObjects.forEach((nodeGroup, nodeId) => {
-            const haloContainer = (nodeGroup as any).__haloContainer;
-            const haloMesh1 = (nodeGroup as any).__haloMesh1;
-            const haloMesh2 = (nodeGroup as any).__haloMesh2;
-            
-            if (haloContainer && haloMesh1 && haloMesh2) {
+        // Update halo animations for tracked nodes (skip in fast mode)
+        if (!animationState.fastMode) {
+            animationState.nodeObjects.forEach((nodeGroup, nodeId) => {
+                const haloContainer = (nodeGroup as any).__haloContainer;
+                const haloMesh1 = (nodeGroup as any).__haloMesh1;
+                const haloMesh2 = (nodeGroup as any).__haloMesh2;
+                
+                if (haloContainer && haloMesh1 && haloMesh2) {
                 // Pulsing scale effect for the entire container
                 const pulseScale = 1.0 + Math.sin(time + nodeId.length) * 0.1;
                 haloContainer.scale.setScalar(pulseScale);
@@ -92,6 +94,7 @@ export function createAnimationLoop(
                 pulseSphere.material.transmission = 0.7 + Math.sin(time * 0.8) * 0.2;
             }
         });
+        }
         
         // Handle idle rotation if active
         if (animationState.isIdleRotationActive) {

@@ -31,7 +31,8 @@ export function createGraph(
     currentParams: GraphParameters,
     uiState: GraphUIState,
     callbacks: GraphCallbacks,
-    menuState?: any
+    menuState?: any,
+    fastMode: boolean = false
 ): any {
     // Initialize the 3D force graph with default or loaded parameters
     const Graph = ForceGraph3D()(container)
@@ -74,25 +75,33 @@ export function createGraph(
             // Use width from edge query styling if available
             return link.width || currentParams.linkStyle?.width || 1; // Default width
         })
-        // Use custom material for links to support transparency with bloom
+        // Use custom material for links
         .linkMaterial((link: any) => {
-            // Get the link color and opacity
             const linkColor = link.color || '#ccc';
-            const linkOpacity = link.opacity !== undefined ? link.opacity : (currentParams.linkStyle?.opacity || 0.2);
             
-            // Use MeshBasicMaterial for better performance with transparency
-            const material = new THREE.MeshBasicMaterial({
-                color: linkColor,
-                transparent: true,
-                opacity: linkOpacity,
-                // Key settings for bloom compatibility:
-                depthWrite: false, // Allow proper transparency sorting
-                side: THREE.DoubleSide,
-                // Use additive blending for a glow-like effect that works well with bloom
-                blending: linkOpacity < 0.5 ? THREE.AdditiveBlending : THREE.NormalBlending
-            });
-            
-            return material;
+            if (fastMode) {
+                // In fast mode, use simple opaque material for performance
+                return new THREE.MeshBasicMaterial({
+                    color: linkColor,
+                    transparent: false,
+                    opacity: 1,
+                    side: THREE.DoubleSide
+                });
+            } else {
+                // Normal mode with transparency and bloom effects
+                const linkOpacity = link.opacity !== undefined ? link.opacity : (currentParams.linkStyle?.opacity || 0.2);
+                
+                return new THREE.MeshBasicMaterial({
+                    color: linkColor,
+                    transparent: true,
+                    opacity: linkOpacity,
+                    // Key settings for bloom compatibility:
+                    depthWrite: false, // Allow proper transparency sorting
+                    side: THREE.DoubleSide,
+                    // Use additive blending for a glow-like effect that works well with bloom
+                    blending: linkOpacity < 0.5 ? THREE.AdditiveBlending : THREE.NormalBlending
+                });
+            }
         })
         // Apply performance parameters
         .cooldownTime(parameters.performance?.cooldownTime || 10000)
@@ -117,7 +126,7 @@ export function createGraph(
         .width(container.clientWidth)
         .height(container.clientHeight)
         .graphData(graphData)
-        .nodeThreeObject((node: any) => createNodeObject(node, uiState, menuState, currentParams))
+        .nodeThreeObject((node: any) => createNodeObject(node, uiState, menuState, currentParams, fastMode))
         .onNodeClick(callbacks.onNodeClick);
     
     // Add background click handler if provided
@@ -130,7 +139,7 @@ export function createGraph(
     return Graph;
 }
 
-export function createNodeObject(node: any, uiState: GraphUIState, menuState?: any, parameters?: GraphParameters): THREE.Group {
+export function createNodeObject(node: any, uiState: GraphUIState, menuState?: any, parameters?: GraphParameters, fastMode: boolean = false): THREE.Group {
     // Create geometry based on shape
     let geometry;
     const baseSize = Math.cbrt(node.val) * 0.5; // Base scale based on node value
@@ -221,8 +230,8 @@ export function createNodeObject(node: any, uiState: GraphUIState, menuState?: a
     
     const mesh = new THREE.Mesh(geometry, material);
     
-    // Add a subtle glow effect for all nodes
-    if (node.material !== 'glass') {
+    // Add a subtle glow effect for all nodes (skip in fast mode)
+    if (!fastMode && node.material !== 'glass') {
         const glowMaterial = new THREE.MeshBasicMaterial({
             color: color,
             transparent: true,
@@ -243,7 +252,7 @@ export function createNodeObject(node: any, uiState: GraphUIState, menuState?: a
     const isTarget = uiState.targetNode === node.id;
     const isInPath = uiState.currentPath.includes(node.id);
     
-    if (isSelected || isSource || isTarget || isInPath) {
+    if (!fastMode && (isSelected || isSource || isTarget || isInPath)) {
         // Determine halo color based on node state (priority order)
         let haloColor;
         if (isSelected) {
@@ -294,9 +303,9 @@ export function createNodeObject(node: any, uiState: GraphUIState, menuState?: a
         (nodeGroup as any).__haloMesh2 = haloMesh2;
     }
     
-    // Add special effect for restriction center node
+    // Add special effect for restriction center node (skip in fast mode)
     const isRestrictionCenter = menuState?.currentRestriction?.nodeId === node.id;
-    if (isRestrictionCenter) {
+    if (!fastMode && isRestrictionCenter) {
         // Create a transparent sphere that pulses with color
         const pulseGeometry = new THREE.SphereGeometry(size * 3, 32, 32);
         

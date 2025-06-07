@@ -10,6 +10,7 @@ import { CytoQueryView, VIEW_TYPE_CYTOQUERY } from './views/cytoquery-view';
 interface CytoQuerySettings {
 	mySetting: string;
 	publicMode: boolean;
+	fastMode: boolean;
 }
 
 export interface CytoQueryData {
@@ -27,7 +28,8 @@ export interface SavedQuery {
 
 const DEFAULT_SETTINGS: CytoQuerySettings = {
 	mySetting: 'default',
-	publicMode: false
+	publicMode: false,
+	fastMode: false
 }
 
 export default class CytoQuery extends Plugin {
@@ -210,6 +212,7 @@ export default class CytoQuery extends Plugin {
 			this.graphInstances, 
 			this.generateRandomStringFromSeed.bind(this), 
 			this.settings.publicMode,
+			this.settings.fastMode,
 			el,
 			ctx
 		);
@@ -238,6 +241,16 @@ export default class CytoQuery extends Plugin {
  				.setValue(this.plugin.settings.publicMode)
  				.onChange(async (value) => {
  					this.plugin.settings.publicMode = value;
+ 					await this.plugin.saveSettings();
+ 				}));
+
+ 		new Setting(containerEl)
+ 			.setName('Fast Mode')
+ 			.setDesc('Disable visual effects (bloom, transparency, animations) for better performance')
+ 			.addToggle(toggle => toggle
+ 				.setValue(this.plugin.settings.fastMode)
+ 				.onChange(async (value) => {
+ 					this.plugin.settings.fastMode = value;
  					await this.plugin.saveSettings();
  				}));
 
