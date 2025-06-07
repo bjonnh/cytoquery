@@ -990,6 +990,54 @@ export function initGraph(
                 coordinateDisplay.element.remove();
             }
             
+            // Dispose Three.js resources and WebGL context
+            try {
+                const renderer = Graph.renderer();
+                if (renderer) {
+                    // Dispose of the renderer's WebGL context
+                    renderer.dispose();
+                    renderer.forceContextLoss();
+                    renderer.domElement = null;
+                    renderer.context = null;
+                }
+                
+                // Clean up the scene
+                const scene = Graph.scene();
+                if (scene) {
+                    scene.traverse((object: any) => {
+                        if (object.geometry) {
+                            object.geometry.dispose();
+                        }
+                        if (object.material) {
+                            if (Array.isArray(object.material)) {
+                                object.material.forEach((material: any) => material.dispose());
+                            } else {
+                                object.material.dispose();
+                            }
+                        }
+                    });
+                    scene.clear();
+                }
+                
+                // Dispose post-processing composer
+                const composer = Graph.postProcessingComposer();
+                if (composer) {
+                    // Dispose all passes
+                    if (composer.passes) {
+                        composer.passes.forEach((pass: any) => {
+                            if (pass.dispose) {
+                                pass.dispose();
+                            }
+                        });
+                    }
+                    // Dispose render targets
+                    if (composer.readBuffer) composer.readBuffer.dispose();
+                    if (composer.writeBuffer) composer.writeBuffer.dispose();
+                }
+            } catch (error) {
+                console.error('Error disposing Three.js resources:', error);
+            }
+            
             // Call 3d-force-graph destructor
             if (Graph._destructor) {
                 Graph._destructor();

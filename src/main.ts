@@ -80,6 +80,11 @@ export default class CytoQuery extends Plugin {
 
 		// Detach leaves for the view type
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_CYTOQUERY);
+
+		// Clean up Three.js global instance to prevent multiple instances warning
+		if ((window as any).THREE) {
+			delete (window as any).THREE;
+		}
 	}
 
 	async activateView() {
