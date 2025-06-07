@@ -1,5 +1,32 @@
+- Graph Tab View:
+  - Dedicated CytoQuery Graph View that opens in a separate tab
+  - Access via command palette: "Open CytoQuery Graph View"
+  - Save and manage multiple queries with persistent storage
+  - Live query editor with syntax highlighting
+  - Run queries with Ctrl/Cmd+Enter or the Run Query button
+  - Save queries with Ctrl/Cmd+S
+  - Query library with dropdown selector for quick access
+  - Export queries to markdown code blocks
+  - Manage saved queries from plugin settings
+  - Delete queries with confirmation dialog
+  - Collapsible editor panel:
+    - Hide/show editor panel with button or Ctrl/Cmd+\
+    - Panel visibility state is preserved across sessions
+    - Smooth animations when toggling panels
+    - Graph view is shown by default with empty query
+    - Compact toolbar with icon-only buttons
 - Visualize a graph of obsidian notes in 3d
 - Select nodes and display a green halo
+- Circular menu for graph controls:
+  - Toggle button (☰) in top-left corner to open/close the menu
+  - Buttons arranged in a circle with smooth animations
+  - Reset View (⟲) - Reset view to center
+  - Reset Orientation (🧭) - Reset camera to standard XYZ
+  - Unlock All (🔓) - Unlock all locked nodes
+  - Save Parameters (💾) - Save settings to code block
+  - Idle Rotation (🔄) - Toggle automatic rotation
+  - FPS Limiter (⚡) - Toggle 60 FPS limit
+  - Path Finding buttons (→, ↔, ✕) - Only visible when start/end nodes are selected
 - Show a circular menu when a node is clicked that allows to:
   - Open the node in a new tab (📄)
   - Lock/unlock the node in place (🔒/🔓)
@@ -91,3 +118,9 @@
   - Camera orientation reset button (🧭) to standard XYZ view
   - Axis indicator stays fixed in screen position using viewport overlay rendering
   - Standard orientation: X = left-right, Y = up-down, Z = front-back
+- UI Customization Settings:
+  - Toggle 3D axis indicator visibility via settings panel
+  - Toggle navigation help text (Left-click: rotate, etc.) via settings panel
+  - Settings persist in saved parameters and presets
+  - Defaults: axis indicator shown, navigation help text hidden
+  - Changes take effect immediately without reloading

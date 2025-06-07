@@ -5,10 +5,24 @@ import {
 	Setting
 } from 'obsidian';
 import { init3DForceGraph } from './graph/force-graph-manager';
+import { CytoQueryView, VIEW_TYPE_CYTOQUERY } from './views/cytoquery-view';
 
 interface CytoQuerySettings {
 	mySetting: string;
 	publicMode: boolean;
+}
+
+export interface CytoQueryData {
+	queries?: SavedQuery[];
+	activeQueryId?: string;
+}
+
+export interface SavedQuery {
+	id: string;
+	name: string;
+	query: string;
+	createdAt: number;
+	modifiedAt: number;
 }
 
 const DEFAULT_SETTINGS: CytoQuerySettings = {
@@ -23,6 +37,21 @@ export default class CytoQuery extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+
+		// Register the view
+		this.registerView(
+			VIEW_TYPE_CYTOQUERY,
+			(leaf) => new CytoQueryView(leaf, this)
+		);
+
+		// Add command to open graph view
+		this.addCommand({
+			id: 'open-cytoquery-view',
+			name: 'Open CytoQuery Graph View',
+			callback: () => {
+				this.activateView();
+			}
+		});
 
 		// Add settings tab
 		this.addSettingTab(new CytoQuerySettingTab(this.app, this));
@@ -47,6 +76,26 @@ export default class CytoQuery extends Plugin {
 		// Disconnect the mutation observer
 		if (this.mutationObserver) {
 			this.mutationObserver.disconnect();
+		}
+
+		// Detach leaves for the view type
+		this.app.workspace.detachLeavesOfType(VIEW_TYPE_CYTOQUERY);
+	}
+
+	async activateView() {
+		this.app.workspace.detachLeavesOfType(VIEW_TYPE_CYTOQUERY);
+
+		const leaf = this.app.workspace.getRightLeaf(false);
+		if (leaf) {
+			await leaf.setViewState({
+				type: VIEW_TYPE_CYTOQUERY,
+				active: true,
+			});
+
+			const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CYTOQUERY);
+			if (leaves.length > 0) {
+				this.app.workspace.revealLeaf(leaves[0]);
+			}
 		}
 	}
 
@@ -170,7 +219,7 @@ export default class CytoQuery extends Plugin {
  		this.plugin = plugin;
  	}
 
- 	display(): void {
+ 	async display(): Promise<void> {
  		const {containerEl} = this;
 
  		containerEl.empty();
@@ -185,6 +234,47 @@ export default class CytoQuery extends Plugin {
  				.onChange(async (value) => {
  					this.plugin.settings.publicMode = value;
  					await this.plugin.saveSettings();
+ 				}));
+
+ 		// Saved Queries Section
+ 		containerEl.createEl('h3', {text: 'Saved Queries'});
+ 		
+ 		const data = await this.plugin.loadData() as CytoQueryData;
+ 		if (data?.queries && data.queries.length > 0) {
+ 			const queriesContainer = containerEl.createEl('div', { cls: 'cytoquery-queries-list' });
+ 			
+ 			data.queries.forEach((query) => {
+ 				new Setting(queriesContainer)
+ 					.setName(query.name)
+ 					.setDesc(`Created: ${new Date(query.createdAt).toLocaleDateString()}`)
+ 					.addButton(button => button
+ 						.setButtonText('Delete')
+ 						.setWarning()
+ 						.onClick(async () => {
+ 							if (confirm(`Delete query "${query.name}"?`)) {
+ 								data.queries = data.queries!.filter(q => q.id !== query.id);
+ 								if (data.activeQueryId === query.id) {
+ 									delete data.activeQueryId;
+ 								}
+ 								await this.plugin.saveData(data);
+ 								this.display(); // Refresh the settings
+ 							}
+ 						}));
+ 			});
+ 		} else {
+ 			containerEl.createEl('p', {
+ 				text: 'No saved queries yet. Open the CytoQuery Graph View to create queries.',
+ 				cls: 'setting-item-description'
+ 			});
+ 		}
+
+ 		// Add button to open the view
+ 		new Setting(containerEl)
+ 			.addButton(button => button
+ 				.setButtonText('Open CytoQuery View')
+ 				.setCta()
+ 				.onClick(() => {
+ 					this.plugin.activateView();
  				}));
  	}
  }

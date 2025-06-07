@@ -86,7 +86,7 @@ export function initGraph(
     container.appendChild(graphContainer);
 
     // Parse errors display (if query parsing fails)
-    let parseErrors: string[] = [];
+    let parseErrors: Array<{ message: string; line?: number; column?: number }> = [];
     if (queryText && queryText.trim()) {
         // For demo, we don't have query parsing, so skip this
         // In Obsidian version, this would parse and apply query rules
@@ -150,6 +150,10 @@ export function initGraph(
             warmupTicks: parameters.performance?.warmupTicks || 0,
             cooldownTicks: parameters.performance?.cooldownTicks || Infinity,
             cooldownTime: parameters.performance?.cooldownTime || 10000
+        },
+        ui: {
+            showAxisIndicator: parameters.ui?.showAxisIndicator !== false, // Default to true
+            showNavInfo: parameters.ui?.showNavInfo ?? false // Default to false
         },
         hyperdimensions: undefined // Will be updated before saving
     };
@@ -351,6 +355,9 @@ export function initGraph(
                 menuState
             );
             currentMenu = result;
+        },
+        onBackgroundClick: (event: MouseEvent) => {
+            // Will be set up after uiElements is created
         }
     };
 
@@ -433,8 +440,14 @@ export function initGraph(
     // Add bloom pass
     const bloomPass = addBloomPass(Graph, graphContainer, parameters);
 
-    // Create axis indicator system (separate renderer for overlay)
+    // Create axis indicator system (separate renderer for overlay) - always create but maybe hide
     const axisIndicatorSystem = createAxisIndicatorSystem(container);
+    
+    // Set initial visibility based on parameter
+    const showAxisIndicator = parameters.ui?.showAxisIndicator !== false; // Default to true
+    if (!showAxisIndicator) {
+        axisIndicatorSystem.container.style.display = 'none';
+    }
     
     // Function to update axis labels based on current mapping
     const updateAxisIndicatorLabels = () => {
@@ -454,7 +467,9 @@ export function initGraph(
     };
     
     // Initial update of axis labels
-    updateAxisIndicatorLabels();
+    if (axisIndicatorSystem) {
+        updateAxisIndicatorLabels();
+    }
 
     // Apply locked nodes from parameters
     applyLockedNodes(Graph, parameters, uiState.lockedNodes);
@@ -500,7 +515,7 @@ export function initGraph(
     let hasUnsavedChanges = false;
 
     // Function to update UI based on current state
-    const updatePathUI = () => {
+    let updatePathUI = () => {
         // Show/hide path buttons
         uiElements.containers.pathButtons.style.display = (uiState.sourceNode && uiState.targetNode) ? 'flex' : 'none';
         
@@ -705,6 +720,28 @@ export function initGraph(
     setupIdleRotationButton();
     setupFPSLimiterButton();
     
+    // Set up background click handler now that uiElements exists
+    graphCallbacks.onBackgroundClick = (event: MouseEvent) => {
+        // Show circular menu at click position
+        const rect = (event.target as HTMLElement).getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        uiElements.showCircularMenu(x, y);
+    };
+    
+    // Apply the background click handler to the graph
+    Graph.onBackgroundClick(graphCallbacks.onBackgroundClick);
+    
+    // Update the updatePathUI function to use the new circular menu status update
+    const originalUpdatePathUI = updatePathUI;
+    const updatePathUIWithCircularMenu = () => {
+        originalUpdatePathUI();
+        // Update circular menu visibility for path buttons
+        uiElements.updatePathNodesStatus(!!uiState.sourceNode, !!uiState.targetNode);
+    };
+    // Replace the original function
+    updatePathUI = updatePathUIWithCircularMenu;
+    
     // Initialize path UI visibility
     updatePathUI();
     
@@ -841,7 +878,8 @@ export function initGraph(
                 currentParams,
                 Graph,
                 bloomPass,
-                settingsCallbacks
+                settingsCallbacks,
+                axisIndicatorSystem
             );
         }
     };
@@ -852,7 +890,8 @@ export function initGraph(
         currentParams,
         Graph,
         bloomPass,
-        settingsCallbacks
+        settingsCallbacks,
+        axisIndicatorSystem
     );
 
     // Access the renderer and set its size properly
@@ -931,7 +970,6 @@ export function initGraph(
         }
     });
     resizeObserver.observe(graphContainer);
-    
 
     // Store graph instance with cleanup function
     const graphInstance = Object.assign(Graph, {

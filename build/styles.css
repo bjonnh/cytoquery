@@ -15,6 +15,14 @@ If your plugin does not need CSS, delete this file.
 	position: relative;
 }
 
+/* Fix for CytoQuery view */
+.cytoquery-graph-instance .force-graph-3d {
+	margin: 0;
+	min-height: 100%;
+	height: 100%;
+	position: relative !important;
+}
+
 /* 3D Force Graph Styles */
 .graph-info-msg {
 	top: 50%;
@@ -44,16 +52,13 @@ If your plugin does not need CSS, delete this file.
 	cursor: -webkit-grabbing;
 }
 
-/* Top Button Container */
+/* Top Button Container - Now used for circular menu */
 .graph-top-buttons {
 	position: absolute;
 	top: 16px;
-	left: 0;
-	right: 0;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	gap: 8px;
+	left: 16px;
+	width: 48px;
+	height: 48px;
 	z-index: 1000;
 	pointer-events: none;
 }
@@ -64,7 +69,7 @@ If your plugin does not need CSS, delete this file.
 
 /* UI Control Buttons */
 .graph-control-button {
-	position: relative;
+	position: relative; /* This should be relative for buttons inside containers */
 	width: 36px;
 	height: 36px;
 	background: rgba(0, 0, 0, 0.7);
@@ -92,7 +97,7 @@ If your plugin does not need CSS, delete this file.
 	position: absolute;
 	top: 16px;
 	right: 16px;
-	z-index: 1000;
+	z-index: 1001; /* Higher than other buttons to prevent overlap */
 	font-size: 20px;
 }
 
@@ -118,7 +123,21 @@ If your plugin does not need CSS, delete this file.
 	display: none !important;
 }
 
+/* Responsive button layout for smaller containers */
+@media (max-width: 800px) {
+	.graph-top-buttons {
+		gap: 4px;
+	}
+	
+	.graph-control-button {
+		width: 32px;
+		height: 32px;
+		font-size: 16px;
+	}
+}
+
 .path-button {
+	position: relative !important;
 	width: 36px;
 	height: 36px;
 	background: rgba(100, 200, 100, 0.3);
@@ -138,6 +157,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .clear-path-button {
+	position: relative !important;
 	width: 36px;
 	height: 36px;
 	background: rgba(200, 100, 100, 0.3);
@@ -182,6 +202,11 @@ If your plugin does not need CSS, delete this file.
 
 .graph-settings-panel.open {
 	right: 0;
+}
+
+/* Adjust menu button when settings panel is open */
+.graph-settings-panel.open ~ .graph-control-button.menu {
+	right: 320px;
 }
 
 /* Error Display */
@@ -614,4 +639,304 @@ If your plugin does not need CSS, delete this file.
 
 .dialog-buttons button[type="submit"]:hover {
 	background: rgba(100, 200, 100, 0.4);
+}
+
+/* CytoQuery View Styles */
+.cytoquery-view {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.cytoquery-main-container {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.cytoquery-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background-color: var(--background-secondary);
+	min-height: 40px;
+}
+
+.cytoquery-query-selector select {
+	min-width: 150px;
+	height: 28px;
+	font-size: 13px;
+}
+
+.cytoquery-buttons {
+	display: flex;
+	gap: 4px;
+}
+
+.cytoquery-icon-button {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: var(--interactive-normal);
+	color: var(--text-muted);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.cytoquery-icon-button:hover {
+	background-color: var(--interactive-hover);
+	color: var(--text-normal);
+}
+
+.cytoquery-icon-button.mod-cta {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.cytoquery-icon-button.mod-cta:hover {
+	background-color: var(--interactive-accent-hover);
+}
+
+.cytoquery-icon-button.mod-warning {
+	color: var(--text-error);
+}
+
+.cytoquery-icon-button svg {
+	width: 16px;
+	height: 16px;
+}
+
+.cytoquery-toolbar-spacer {
+	flex: 1;
+}
+
+.cytoquery-panel-toggles {
+	display: flex;
+	gap: 5px;
+}
+
+.cytoquery-panel-toggle {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: var(--interactive-normal);
+	color: var(--text-muted);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.cytoquery-panel-toggle:hover {
+	background-color: var(--interactive-hover);
+	color: var(--text-normal);
+}
+
+.cytoquery-panel-toggle svg {
+	width: 16px;
+	height: 16px;
+}
+
+.cytoquery-content {
+	flex: 1;
+	display: flex;
+	overflow: hidden;
+	transition: all 0.3s ease;
+}
+
+.cytoquery-editor-panel {
+	width: 35%;
+	min-width: 300px;
+	display: flex;
+	flex-direction: column;
+	border-right: 1px solid var(--background-modifier-border);
+	transition: all 0.3s ease;
+}
+
+.cytoquery-editor-panel.hidden {
+	width: 0;
+	min-width: 0;
+	overflow: hidden;
+	border-right: none;
+}
+
+.cytoquery-content.editor-hidden .cytoquery-graph-panel {
+	width: 100%;
+}
+
+.cytoquery-content.graph-hidden .cytoquery-editor-panel {
+	width: 100%;
+	border-right: none;
+}
+
+.cytoquery-editor-header {
+	padding: 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background-color: var(--background-secondary);
+}
+
+.cytoquery-editor-header h3 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.cytoquery-editor {
+	flex: 1;
+	width: 100%;
+	padding: 10px;
+	border: none;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 13px;
+	resize: none;
+	outline: none;
+}
+
+.cytoquery-graph-panel {
+	flex: 1;
+	position: relative;
+	background-color: var(--background-primary);
+	transition: all 0.3s ease;
+	overflow: hidden;
+}
+
+.cytoquery-graph-panel.hidden {
+	width: 0;
+	overflow: hidden;
+}
+
+.cytoquery-graph-instance {
+	width: 100%;
+	height: 100%;
+	position: relative;
+}
+
+/* Ensure graph controls stay within bounds */
+.cytoquery-graph-instance {
+	container-type: inline-size;
+}
+
+.cytoquery-graph-instance .force-graph-3d {
+	position: relative;
+	height: 100%;
+	width: 100%;
+}
+
+/* Ensure proper button layout in CytoQuery view */
+.cytoquery-graph-instance .graph-top-buttons .graph-control-button {
+	position: static !important; /* Force buttons to follow normal flow */
+	display: inline-flex !important;
+}
+
+.cytoquery-graph-instance .graph-control-button.menu {
+	position: absolute !important;
+}
+
+/* Circular Menu Styles */
+.graph-circular-menu {
+	position: absolute;
+	width: 48px;
+	height: 48px;
+	pointer-events: none;
+	z-index: 1001;
+	opacity: 0;
+	transform: scale(0.8);
+	transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.graph-circular-menu.open {
+	opacity: 1;
+	transform: scale(1);
+}
+
+.graph-circular-menu-item {
+	position: absolute;
+	width: 36px;
+	height: 36px;
+	background: rgba(0, 0, 0, 0.8);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	border-radius: 50%;
+	color: white;
+	font-size: 18px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.3s ease;
+	pointer-events: auto;
+	opacity: 0;
+	transform: scale(0);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Staggered animation for menu items */
+.graph-circular-menu.open .graph-circular-menu-item:nth-child(1) { transition-delay: 0s; }
+.graph-circular-menu.open .graph-circular-menu-item:nth-child(2) { transition-delay: 0.05s; }
+.graph-circular-menu.open .graph-circular-menu-item:nth-child(3) { transition-delay: 0.1s; }
+.graph-circular-menu.open .graph-circular-menu-item:nth-child(4) { transition-delay: 0.15s; }
+.graph-circular-menu.open .graph-circular-menu-item:nth-child(5) { transition-delay: 0.2s; }
+.graph-circular-menu.open .graph-circular-menu-item:nth-child(6) { transition-delay: 0.25s; }
+.graph-circular-menu.open .graph-circular-menu-item:nth-child(7) { transition-delay: 0.3s; }
+.graph-circular-menu.open .graph-circular-menu-item:nth-child(8) { transition-delay: 0.35s; }
+.graph-circular-menu.open .graph-circular-menu-item:nth-child(9) { transition-delay: 0.4s; }
+
+.graph-circular-menu.open .graph-circular-menu-item {
+	opacity: 1;
+	transform: scale(1);
+}
+
+.graph-circular-menu-item:hover {
+	background: rgba(20, 20, 20, 0.9);
+	transform: scale(1.1);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.graph-circular-menu-item.active {
+	background: rgba(100, 200, 100, 0.5);
+}
+
+/* Hide path buttons by default */
+.graph-circular-menu-item.path-button {
+	display: none;
+}
+
+/* Show path buttons when nodes are selected */
+.graph-circular-menu.has-path-nodes .graph-circular-menu-item.path-button {
+	display: flex;
+}
+
+/* Adjust button layout for narrow graph containers */
+@container (max-width: 600px) {
+	.cytoquery-graph-instance .graph-top-buttons {
+		flex-direction: column;
+		gap: 4px;
+		max-width: none;
+		left: 16px;
+		transform: none;
+	}
+	
+	.cytoquery-graph-instance .graph-control-button.menu {
+		top: auto;
+		bottom: 16px;
+	}
+}
+
+.cytoquery-status-bar {
+	padding: 5px 10px;
+	font-size: 12px;
+	color: var(--text-muted);
+	background-color: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
 }

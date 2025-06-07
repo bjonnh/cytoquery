@@ -239,7 +239,7 @@ export function parseParametersAndQuery(source: string): { parameters: GraphPara
 export function formatParameters(params: GraphParameters): string {
     const lines: string[] = ['---'];
     
-    const sections: (keyof GraphParameters)[] = ['force', 'dag', 'nodeStyle', 'linkStyle', 'bloom', 'interaction', 'performance'];
+    const sections: (keyof GraphParameters)[] = ['force', 'dag', 'nodeStyle', 'linkStyle', 'bloom', 'interaction', 'performance', 'ui'];
     
     for (const section of sections) {
         if (params[section]) {

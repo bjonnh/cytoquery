@@ -1,0 +1,2 @@
+- [x] Setting to hide the axis view from the bottom left
+- [x] Setting to hide text at the bottom (Left-click etc)

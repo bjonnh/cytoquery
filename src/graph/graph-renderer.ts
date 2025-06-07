@@ -12,6 +12,7 @@ export interface GraphInstance {
 
 export interface GraphCallbacks {
     onNodeClick: (node: any, event: MouseEvent) => void;
+    onBackgroundClick?: (event: MouseEvent) => void;
 }
 
 export interface GraphUIState {
@@ -35,6 +36,7 @@ export function createGraph(
     // Initialize the 3D force graph with default or loaded parameters
     const Graph = ForceGraph3D()(container)
         .backgroundColor('#000003')
+        .showNavInfo(parameters.ui?.showNavInfo ?? false)  // Control navigation help text via parameter, default to false
         .nodeLabel('name')
         .nodeColor('color')
         .nodeVal('val')
@@ -96,6 +98,11 @@ export function createGraph(
         .graphData(graphData)
         .nodeThreeObject((node: any) => createNodeObject(node, uiState, menuState, currentParams))
         .onNodeClick(callbacks.onNodeClick);
+    
+    // Add background click handler if provided
+    if (callbacks.onBackgroundClick) {
+        Graph.onBackgroundClick(callbacks.onBackgroundClick);
+    }
 
     Graph.enableNavigationControls();
     

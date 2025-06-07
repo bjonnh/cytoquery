@@ -38,6 +38,12 @@ export interface GraphParameters {
         cooldownTicks?: number;
         cooldownTime?: number;
     };
+    ui?: {
+        /** Show the 3D axis indicator in the bottom left */
+        showAxisIndicator?: boolean;
+        /** Show navigation help text at the bottom */
+        showNavInfo?: boolean;
+    };
     /**
      * @deprecated Use hyperdimensions instead
      */

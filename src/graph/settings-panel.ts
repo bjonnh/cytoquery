@@ -13,7 +13,8 @@ export function createSettingsControls(
     currentParams: GraphParameters,
     Graph: any,
     bloomPass: any,
-    callbacks: SettingsCallbacks
+    callbacks: SettingsCallbacks,
+    axisIndicatorSystem?: any
 ): void {
     // Clear existing content
     settingsPanel.innerHTML = '';
@@ -210,6 +211,64 @@ export function createSettingsControls(
     enableDragToggle.appendChild(dragLabel);
     interactionSection.appendChild(enableDragToggle);
     settingsPanel.appendChild(interactionSection);
+
+    // UI Section
+    const uiSection = createSection('User Interface');
+    const showAxisToggle = document.createElement('div');
+    showAxisToggle.style.cssText = 'margin-bottom: 15px;';
+    const axisLabel = document.createElement('label');
+    axisLabel.style.cssText = 'display: flex; align-items: center; font-size: 13px; cursor: pointer;';
+    const axisCheckbox = document.createElement('input');
+    axisCheckbox.type = 'checkbox';
+    axisCheckbox.checked = currentParams.ui?.showAxisIndicator !== false; // Default to true
+    axisCheckbox.style.cssText = 'margin-right: 8px;';
+    axisCheckbox.onchange = () => {
+        // Initialize ui object if it doesn't exist
+        if (!currentParams.ui) {
+            currentParams.ui = {};
+        }
+        currentParams.ui.showAxisIndicator = axisCheckbox.checked;
+        
+        // Toggle axis indicator visibility immediately if it exists
+        if (axisIndicatorSystem && axisIndicatorSystem.container) {
+            axisIndicatorSystem.container.style.display = axisCheckbox.checked ? '' : 'none';
+        }
+        
+        callbacks.onParameterChange();
+    };
+    axisLabel.appendChild(axisCheckbox);
+    axisLabel.appendChild(document.createTextNode('Show 3D Axis Indicator'));
+    showAxisToggle.appendChild(axisLabel);
+    
+    uiSection.appendChild(showAxisToggle);
+    
+    // Add navigation info toggle
+    const showNavInfoToggle = document.createElement('div');
+    showNavInfoToggle.style.cssText = 'margin-bottom: 15px;';
+    const navInfoLabel = document.createElement('label');
+    navInfoLabel.style.cssText = 'display: flex; align-items: center; font-size: 13px; cursor: pointer;';
+    const navInfoCheckbox = document.createElement('input');
+    navInfoCheckbox.type = 'checkbox';
+    navInfoCheckbox.checked = currentParams.ui?.showNavInfo ?? false; // Default to false
+    navInfoCheckbox.style.cssText = 'margin-right: 8px;';
+    navInfoCheckbox.onchange = () => {
+        // Initialize ui object if it doesn't exist
+        if (!currentParams.ui) {
+            currentParams.ui = {};
+        }
+        currentParams.ui.showNavInfo = navInfoCheckbox.checked;
+        
+        // Toggle navigation info immediately
+        Graph.showNavInfo(navInfoCheckbox.checked);
+        
+        callbacks.onParameterChange();
+    };
+    navInfoLabel.appendChild(navInfoCheckbox);
+    navInfoLabel.appendChild(document.createTextNode('Show Navigation Help Text'));
+    showNavInfoToggle.appendChild(navInfoLabel);
+    
+    uiSection.appendChild(showNavInfoToggle);
+    settingsPanel.appendChild(uiSection);
 
     // Presets Section
     const presetsSection = createSection('Settings Presets');
@@ -424,6 +483,24 @@ export function createSettingsControls(
             }
         }
 
+        if (preset.ui) {
+            if (!currentParams.ui) {
+                currentParams.ui = {};
+            }
+            if (preset.ui.showAxisIndicator !== undefined) {
+                currentParams.ui.showAxisIndicator = preset.ui.showAxisIndicator;
+                // Update axis indicator visibility
+                if (axisIndicatorSystem && axisIndicatorSystem.container) {
+                    axisIndicatorSystem.container.style.display = preset.ui.showAxisIndicator ? '' : 'none';
+                }
+            }
+            if (preset.ui.showNavInfo !== undefined) {
+                currentParams.ui.showNavInfo = preset.ui.showNavInfo;
+                // Update navigation info visibility
+                Graph.showNavInfo(preset.ui.showNavInfo);
+            }
+        }
+
         // Refresh graph
         Graph.refresh();
 
@@ -603,6 +680,17 @@ export function createSettingsControls(
         currentParams.bloom!.strength = 4.5;
         currentParams.bloom!.radius = 1;
         currentParams.bloom!.threshold = 0;
+        if (!currentParams.ui) {
+            currentParams.ui = {};
+        }
+        currentParams.ui.showAxisIndicator = true; // Default to true
+        currentParams.ui.showNavInfo = false; // Default to false
+        
+        // Update UI elements
+        if (axisIndicatorSystem && axisIndicatorSystem.container) {
+            axisIndicatorSystem.container.style.display = '';
+        }
+        Graph.showNavInfo(false);
         
         // Force re-render of all nodes after reset
         Graph.nodeThreeObject(Graph.nodeThreeObject());
